@@ -342,6 +342,12 @@ export function TopNav() {
                   </button>
                 </div>
               ))}
+              <Link
+                href="/about"
+                className="px-3.5 py-2 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-150"
+              >
+                About Us
+              </Link>
             </div>
 
             {/* ── Search bar (desktop) ─────────────────────────── */}
@@ -359,7 +365,7 @@ export function TopNav() {
                     setSelectedIndex(0);
                   }}
                   onFocus={() => setSearchExpanded(true)}
-                  className="w-full h-9 pl-9 pr-8 bg-muted/60 border border-border rounded-xl text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-card transition-all"
+                  className="w-full h-9 pl-9 pr-8 bg-muted/60 border border-border rounded-xl text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-border transition-all"
                 />
                 {searchQuery ? (
                   <button
@@ -666,6 +672,16 @@ export function TopNav() {
         {mobileOpen && (
           <div className="md:hidden border-t border-border bg-card animate-fade-in max-h-[80vh] overflow-y-auto z-50 shadow-2xl">
             <div className="px-4 py-4 space-y-4">
+              <div className="pb-2 border-b border-border">
+                <Link
+                  href="/about"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-primary/10 text-primary font-bold text-[13.5px]"
+                >
+                  <span>About BloomPDF & Stemlen</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
               {allPdfCategories.map((cat) => {
                 const category = getCategoryById(cat.id);
                 return (

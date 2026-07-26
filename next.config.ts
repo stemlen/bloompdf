@@ -4,6 +4,22 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "stemlen.com",
+      },
+      {
+        protocol: "https",
+        hostname: "fairlx.com",
+      },
+      {
+        protocol: "https",
+        hostname: "schoolstacker.app",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

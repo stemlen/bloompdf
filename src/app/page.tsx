@@ -7,7 +7,7 @@ import {
   PackageMinus, Image as ImageIcon, FileText,
   LayoutGrid, ArrowRightLeft, PenLine, ClipboardList,
   Shield, Zap, Combine, Scissors,
-  MousePointer2, Type, Square, Download, MoreHorizontal, ChevronRight, ChevronLeft, ZoomIn, ZoomOut, CheckCircle2, AlignLeft
+  MousePointer2, Type, Square, Download, MoreHorizontal, ChevronRight, ChevronLeft, ZoomIn, ZoomOut, CheckCircle2, AlignLeft, Code2, Lock, Globe
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useFavorites } from "@/lib/hooks/useFavorites";
@@ -15,6 +15,7 @@ import { useRecent } from "@/lib/hooks/useRecent";
 import { categories, getCategoryById, getCategoryBgStyle } from "@/lib/categories";
 import { getToolsByCategory, tools as allTools } from "@/lib/tools";
 import { CategorySection } from "@/components/dashboard/CategorySection";
+import { AboutSection } from "@/components/dashboard/AboutSection";
 import { ToolCard } from "@/components/dashboard/ToolCard";
 import { getToolBySlug } from "@/lib/tools";
 import { cn } from "@/lib/utils";
@@ -36,9 +37,8 @@ const categoryIcons: Record<string, LucideIcon> = {
 };
 
 const STATS = [
-  { icon: FileText, label: `${allTools.length} Tools`, sub: "All in one place", color: "#E8607A", catId: "organize" },
-  { icon: Zap, label: "Instant", sub: "Processed in seconds", color: "#0D9488", catId: "optimize" },
-  { icon: Shield, label: "Private", sub: "Files never stored", color: "#2563EB", catId: "security" },
+  { icon: Code2, label: "Open Source", sub: "All in one place", color: "#E8607A", catId: "organize" },
+  { icon: Shield, label: "Private", sub: "No file storage", color: "#2563EB", catId: "security" },
 ];
 
 // ─── Sub-components ────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ export default function HomePage() {
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-3.5 py-1.5 mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E8607A] flex-shrink-0 animate-bloom-pulse" />
                 <span className="text-[12px] font-semibold text-primary">
-                  {allTools.length} tools · 100% free · No sign-up
+                  {allTools.length} tools · 100% Free & Open Source · No sign-up
                 </span>
               </div>
 
@@ -146,32 +146,40 @@ export default function HomePage() {
               {/* Sub-headline */}
               <p className="text-[17px] sm:text-[18px] text-muted-foreground leading-relaxed max-w-xl mb-8">
                 Professional document tools — merge, split, compress, convert, and edit PDFs
-                entirely in your browser. Fast, private, and completely free.
+                entirely in your browser. 100% open source, fast, private, and completely free.
               </p>
 
-              {/* Stats row */}
-              <div className="flex flex-wrap gap-3">
-                {STATS.map((s) => {
-                  const Icon = s.icon;
-                  const cat = getCategoryById(s.catId);
-                  return (
-                    <div
-                      key={s.label}
-                      className="flex items-center gap-2.5 bg-card border border-border rounded-xl px-3.5 py-2.5 shadow-xs"
-                    >
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={getCategoryBgStyle(cat)}
-                      >
-                        <Icon className="w-3.5 h-3.5" style={{ color: s.color }} />
-                      </div>
-                      <div>
-                        <p className="text-[12px] font-bold text-foreground leading-none">{s.label}</p>
-                        <p className="text-[11px] text-muted-foreground leading-none mt-0.5">{s.sub}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Security & Open Source Monochrome Badges (Hero Left Column) */}
+              <div className="flex flex-wrap items-center gap-6 sm:gap-8 pt-2 select-none opacity-85 hover:opacity-100 transition-opacity">
+                {/* 1. SECURE SSL ENCRYPTION */}
+                <div className="flex items-center gap-2.5">
+                  <div className="relative flex items-center justify-center">
+                    <Lock className="w-6 h-6 text-muted-foreground/70" />
+                    <CheckCircle2 className="w-3 h-3 text-muted-foreground/90 absolute -bottom-0.5 -right-0.5 bg-card rounded-full" />
+                  </div>
+                  <div className="leading-tight">
+                    <p className="text-[12px] font-black text-muted-foreground tracking-wider uppercase">SECURE</p>
+                    <p className="text-[8px] font-extrabold text-muted-foreground/80 tracking-widest uppercase">SSL ENCRYPTION</p>
+                  </div>
+                </div>
+
+                {/* 2. 100% FREE & OPEN SOURCE */}
+                <div className="flex items-center gap-2.5">
+                  <Code2 className="w-6 h-6 text-muted-foreground/70" />
+                  <div className="leading-tight">
+                    <p className="text-[12.5px] font-black text-muted-foreground tracking-wider uppercase">100% FREE &</p>
+                    <p className="text-[8.5px] font-extrabold text-muted-foreground/80 tracking-widest uppercase">OPEN SOURCE</p>
+                  </div>
+                </div>
+
+                {/* 3. NO FILE STORAGE */}
+                <div className="flex items-center gap-2.5">
+                  <Shield className="w-6 h-6 text-muted-foreground/70" />
+                  <div className="leading-tight">
+                    <p className="text-[12.5px] font-black text-muted-foreground tracking-wider uppercase">NO FILE</p>
+                    <p className="text-[8.5px] font-extrabold text-muted-foreground/80 tracking-widest uppercase">STORAGE</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -501,12 +509,12 @@ export default function HomePage() {
           <div className="mt-16 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <NextImage src="/BloomPDF.png" alt="BloomPDF" width={260} height={70} className="h-18 sm:h-20 w-auto object-contain scale-150 origin-left" />
-              <span className="text-[12px] text-muted-foreground">— Professional PDF Workspace</span>
+              <span className="text-[12px] text-muted-foreground">— A Product by Stemlen</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span className="text-[12px] text-muted-foreground">
-                All {allTools.length} tools free · No sign-up · No watermarks
+                All {allTools.length} tools free · No sign-up · Powered by Stemlen
               </span>
             </div>
           </div>

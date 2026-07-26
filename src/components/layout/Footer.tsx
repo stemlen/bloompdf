@@ -30,16 +30,29 @@ export function Footer() {
               Smart, fast, and reliable PDF tools for every workflow. Simplify your document management with our premium suite of tools.
             </p>
             <div className="flex items-center gap-4 mt-auto">
-              <a href="#" className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-[#E8607A] hover:text-white transition-colors">
+              <a
+                href="https://www.linkedin.com/company/stemlen/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-[#E8607A] hover:text-white transition-colors"
+                title="LinkedIn"
+              >
                 <Linkedin className="w-4 h-4" />
               </a>
-              <a href="#" className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-[#E8607A] hover:text-white transition-colors">
+              <a
+                href="https://github.com/stemlen/bloompdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-[#E8607A] hover:text-white transition-colors"
+                title="GitHub"
+              >
                 <Github className="w-4 h-4" />
               </a>
-              <a href="#" className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-[#E8607A] hover:text-white transition-colors">
-                <Twitter className="w-4 h-4" />
-              </a>
-              <a href="#" className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-[#E8607A] hover:text-white transition-colors">
+              <a
+                href="mailto:info@stemlen.com"
+                className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-[#E8607A] hover:text-white transition-colors"
+                title="Email: info@stemlen.com"
+              >
                 <Mail className="w-4 h-4" />
               </a>
             </div>
@@ -112,14 +125,20 @@ export function Footer() {
             <h4 className="text-[14px] font-bold text-foreground mb-4">About</h4>
             <ul className="space-y-3">
               {[
-                { label: "About BloomPDF", href: "/" },
-                { label: "Favorites", href: "/#favorites" },
-                { label: "Recent Tools", href: "/#recent" },
+                { label: "About BloomPDF", href: "/about", external: false },
+                { label: "Stemlen.com", href: "https://stemlen.com", external: true },
+                { label: "Favorites", href: "/#favorites", external: false },
+                { label: "Recent Tools", href: "/#recent", external: false },
               ].map((item) => (
                 <li key={item.label}>
-                  <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                  <a
+                    href={item.href}
+                    target={item.external ? "_blank" : undefined}
+                    rel={item.external ? "noopener noreferrer" : undefined}
+                    className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium inline-flex items-center gap-1"
+                  >
                     {item.label}
-                  </Link>
+                  </a>
                 </li>
               ))}
             </ul>
@@ -166,10 +185,19 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-[13px] text-muted-foreground font-medium">
-            © 2026 BloomPDF. All rights reserved.
+            © 2026 BloomPDF. A product by{" "}
+            <a
+              href="https://stemlen.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground font-semibold hover:text-[#E8607A] transition-colors underline underline-offset-4"
+            >
+              Stemlen
+            </a>
+            . All rights reserved.
           </p>
           <p className="text-[13px] text-muted-foreground font-medium flex items-center gap-1.5">
-            Made with <span className="text-[#E8607A]">❤️</span> for document productivity.
+            Made with <span className="text-[#E8607A]">❤️</span> by Stemlen for document productivity.
           </p>
         </div>
 
