@@ -40,6 +40,7 @@ import { MarkdownToPdfTool } from "./MarkdownToPdfTool";
 import { TextToPdfTool } from "./TextToPdfTool";
 import { ProtectPdfTool } from "./ProtectPdfTool";
 import { UnlockPdfTool } from "./UnlockPdfTool";
+import { ToolIcon } from "@/components/icons/ToolIcons";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -149,11 +150,8 @@ export function ToolShell({ tool }: ToolShellProps) {
         {/* Compact Workspace Header */}
         <div className="h-14 bg-card border-b border-border flex items-center px-4 sm:px-6 justify-between flex-shrink-0 z-10 shadow-xs">
           <div className="flex items-center gap-3">
-             <div
-               className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm border border-border/50"
-               style={getCategoryBgStyle(category)}
-             >
-                <Icon className="w-4 h-4" color={category?.color} />
+             <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
+                <ToolIcon slug={tool.slug} size={36} />
              </div>
              <div>
                 <nav className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">
@@ -212,11 +210,8 @@ export function ToolShell({ tool }: ToolShellProps) {
 
           {/* Tool identity */}
           <div className="flex items-start gap-4">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={getCategoryBgStyle(category)}
-            >
-              <Icon className="w-5 h-5" color={category?.color} />
+            <div className="w-12 h-12 flex items-center justify-center flex-shrink-0">
+              <ToolIcon slug={tool.slug} size={48} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">

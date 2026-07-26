@@ -9,16 +9,10 @@ import {
   Archive, PenLine, RotateCw, Hash, Droplets, Crop, ClipboardList,
   Star, ArrowRight,
 } from "lucide-react";
+import { ToolIcon } from "@/components/icons/ToolIcons";
 import { cn } from "@/lib/utils";
 import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
 import type { Tool } from "@/lib/tools";
-
-const iconMap: Record<string, LucideIcon> = {
-  Combine, Scissors, FileMinus, FileOutput, LayoutGrid, Scan,
-  Minimize2, Wrench, ScanText, Image: ImageIcon, FileText,
-  FileSpreadsheet, Globe, FileImage, FileEdit, Presentation,
-  Archive, PenLine, RotateCw, Hash, Droplets, Crop, ClipboardList,
-};
 
 interface ToolCardProps {
   tool: Tool;
@@ -36,7 +30,6 @@ export function ToolCard({
   featured,
 }: ToolCardProps) {
   const category = getCategoryById(tool.categoryId);
-  const Icon = iconMap[tool.icon] ?? FileText;
 
   /* ── Compact (horizontal pill — used in Recent / Favorites) ── */
   if (compact) {
@@ -47,11 +40,8 @@ export function ToolCard({
           className="flex items-center gap-3 bg-card rounded-xl border border-border shadow-card hover:shadow-card-hover px-3.5 py-3 transition-all duration-200 w-52"
           aria-label={tool.name}
         >
-          <div
-            className="card-icon-container w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200"
-            style={getCategoryBgStyle(category)}
-          >
-            <Icon className="w-5 h-5" style={{ color: category?.color }} />
+          <div className="card-icon-container w-10 h-10 flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
+            <ToolIcon slug={tool.slug} size={40} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-foreground truncate leading-snug">
@@ -81,8 +71,8 @@ export function ToolCard({
   }
 
   /* ── Standard card ─────────────────────────────────────────── */
-  const iconSize = featured ? "w-20 h-20" : "w-[4.5rem] h-[4.5rem]";
-  const iconInner = featured ? "w-10 h-10" : "w-8 h-8";
+  const iconBoxSize = featured ? "w-20 h-20" : "w-[4.5rem] h-[4.5rem]";
+  const svgSize = featured ? 52 : 44;
 
   return (
     <div className="relative group tool-card">
@@ -103,12 +93,11 @@ export function ToolCard({
         {/* Icon */}
         <div
           className={cn(
-            "card-icon-container rounded-2xl flex items-center justify-center flex-shrink-0 mb-5 transition-all duration-200",
-            iconSize
+            "card-icon-container flex items-center justify-center flex-shrink-0 mb-5 transition-transform duration-200 group-hover:scale-105",
+            featured ? "w-16 h-16" : "w-14 h-14"
           )}
-          style={getCategoryBgStyle(category)}
         >
-          <Icon className={iconInner} style={{ color: category?.color }} />
+          <ToolIcon slug={tool.slug} size={featured ? 64 : 54} />
         </div>
 
         {/* Name + description */}

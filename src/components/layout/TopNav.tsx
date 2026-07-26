@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { useSearch } from "@/lib/hooks/useSearch";
 import type { LucideIcon } from "lucide-react";
 import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
+import { ToolIcon } from "@/components/icons/ToolIcons";
 import { ThemeToggle } from "./ThemeToggle";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -171,8 +172,7 @@ const allPdfCategories: MegaCategory[] = [
 
 // ─── Mega-menu sub-components ─────────────────────────────────────────────
 
-function ToolLink({ tool, onClick, color, catId }: { tool: MegaToolItem; onClick?: () => void; color?: string; catId?: string }) {
-  const Icon = tool.icon;
+function ToolLink({ tool, onClick, catId }: { tool: MegaToolItem; onClick?: () => void; color?: string; catId?: string }) {
   const category = catId ? getCategoryById(catId) : undefined;
   return (
     <Link
@@ -180,11 +180,8 @@ function ToolLink({ tool, onClick, color, catId }: { tool: MegaToolItem; onClick
       onClick={onClick}
       className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-muted transition-colors group"
     >
-      <div 
-        className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 transition-colors border border-transparent group-hover:shadow-sm"
-        style={category ? getCategoryBgStyle(category) : { backgroundColor: 'var(--muted)' }}
-      >
-        <Icon className="w-3.5 h-3.5" style={{ color: color || 'var(--foreground)' }} />
+      <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+        <ToolIcon slug={tool.slug} size={24} />
       </div>
       <div className="min-w-0">
         <p className="text-[12.5px] font-medium text-foreground leading-tight whitespace-nowrap">
@@ -315,8 +312,8 @@ export function TopNav() {
               />
             </Link>
 
-            {/* ── Primary nav items (desktop) ───────────────────── */}
-            <div className="hidden lg:flex items-center gap-0.5">
+            {/* ── Primary nav items (desktop & tablet) ───────────────────── */}
+            <div className="hidden md:flex items-center gap-0.5">
               {navItems.map((item) => (
                 <div
                   key={item.id}
@@ -327,8 +324,9 @@ export function TopNav() {
                   <button
                     aria-haspopup="true"
                     aria-expanded={activeMenu === item.id}
+                    onClick={() => setActiveMenu((prev) => (prev === item.id ? null : item.id))}
                     className={cn(
-                      "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 select-none",
+                      "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 select-none cursor-pointer",
                       activeMenu === item.id
                         ? "bg-muted text-foreground font-semibold"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
@@ -407,13 +405,8 @@ export function TopNav() {
                               )}
                               onMouseEnter={() => setSelectedIndex(index)}
                             >
-                              <div className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
-                                isSelected ? "bg-card border border-primary/30 shadow-sm" : "group-hover:shadow-sm"
-                              )}
-                              style={!isSelected ? getCategoryBgStyle(category) : {}}
-                              >
-                                <Icon className="w-4 h-4" style={{ color: isSelected ? "#E8607A" : (category?.color || "#555555") }} />
+                              <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
+                                <ToolIcon slug={tool.slug} size={28} />
                               </div>
                               <div className="min-w-0">
                                 <p className={cn("text-[13px] font-semibold leading-tight", isSelected ? "text-primary" : "text-foreground")}>
@@ -450,7 +443,7 @@ export function TopNav() {
               {/* Mobile menu trigger */}
               <button
                 onClick={() => setMobileOpen((prev) => !prev)}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted lg:hidden transition-colors"
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted md:hidden transition-colors"
                 aria-label={mobileOpen ? "Close menu" : "Open menu"}
               >
                 {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -468,7 +461,7 @@ export function TopNav() {
           <div
             onMouseEnter={() => handleMenuEnter("all-tools")}
             onMouseLeave={handleMenuLeave}
-            className="absolute top-full left-0 right-0 bg-card border-b border-border shadow-2xl z-50 animate-fade-in"
+            className="absolute top-full left-0 right-0 bg-card border-b border-border shadow-2xl z-50 animate-fade-in max-h-[85vh] overflow-y-auto"
           >
             <div className="max-w-screen-xl mx-auto px-6 py-6">
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
@@ -487,7 +480,7 @@ export function TopNav() {
               </div>
 
               {/* Category columns grid */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4 xl:gap-2">
                 {allPdfCategories.map((cat) => {
                   const CatIcon = cat.icon;
                   const category = getCategoryById(cat.id);
@@ -578,7 +571,6 @@ export function TopNav() {
 
                   <div className="space-y-0.5">
                     {(allPdfCategories.find((c) => c.id === "convert-to")?.tools || []).map((tool) => {
-                      const Icon = tool.icon;
                       return (
                         <Link
                           key={tool.slug}
@@ -586,8 +578,8 @@ export function TopNav() {
                           onClick={() => setActiveMenu(null)}
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors group"
                         >
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-transparent transition-all shadow-none group-hover:shadow-sm">
-                            <Icon className="w-4 h-4 text-[#16A34A]" />
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-transparent transition-all shadow-none group-hover:shadow-sm p-1">
+                            <ToolIcon slug={tool.slug} size={28} />
                           </div>
                           <div>
                             <p className="text-[13px] font-semibold text-foreground leading-tight">
@@ -622,7 +614,6 @@ export function TopNav() {
 
                   <div className="space-y-0.5">
                     {(allPdfCategories.find((c) => c.id === "convert-from")?.tools || []).map((tool) => {
-                      const Icon = tool.icon;
                       return (
                         <Link
                           key={tool.slug}
@@ -630,8 +621,8 @@ export function TopNav() {
                           onClick={() => setActiveMenu(null)}
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors group"
                         >
-                          <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0 border border-transparent transition-all shadow-none group-hover:shadow-sm">
-                            <Icon className="w-4 h-4 text-[#EA580C]" />
+                          <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0 border border-transparent transition-all shadow-none group-hover:shadow-sm p-1">
+                            <ToolIcon slug={tool.slug} size={28} />
                           </div>
                           <div>
                             <p className="text-[13px] font-semibold text-foreground leading-tight">
@@ -673,70 +664,38 @@ export function TopNav() {
 
         {/* ── Mobile menu ─────────────────────────────────────────────── */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-border bg-card animate-fade-in max-h-[75vh] overflow-y-auto z-50 shadow-2xl">
-            <div className="px-4 py-3 space-y-1">
-
-              {/* Convert to PDF section */}
-              <div className="mb-2">
-                <p className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Convert to PDF
-                </p>
-                {(allPdfCategories.find((c) => c.id === "convert-to")?.tools || []).map((tool) => {
-                  const Icon = tool.icon;
-                  return (
-                    <Link
-                      key={tool.slug}
-                      href={`/tools/${tool.slug}`}
-                      onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-muted"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-4 h-4 text-[#16A34A]" />
-                      </div>
-                      <p className="text-[13px] font-semibold text-foreground">{tool.name}</p>
-                    </Link>
-                  );
-                })}
-              </div>
-
-              <div className="h-px bg-border my-2" />
-
-              {/* Convert from PDF section */}
-              <div className="mb-2">
-                <p className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Convert from PDF
-                </p>
-                {(allPdfCategories.find((c) => c.id === "convert-from")?.tools || []).map((tool) => {
-                  const Icon = tool.icon;
-                  return (
-                    <Link
-                      key={tool.slug}
-                      href={`/tools/${tool.slug}`}
-                      onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-muted"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-4 h-4 text-[#EA580C]" />
-                      </div>
-                      <p className="text-[13px] font-semibold text-foreground">{tool.name}</p>
-                    </Link>
-                  );
-                })}
-              </div>
-
-              <div className="h-px bg-border my-2" />
-
-              {/* All tools link */}
-              <Link
-                href="/"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-muted"
-              >
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                  <Layers className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <p className="text-[13px] font-semibold text-foreground">All PDF Tools</p>
-              </Link>
+          <div className="md:hidden border-t border-border bg-card animate-fade-in max-h-[80vh] overflow-y-auto z-50 shadow-2xl">
+            <div className="px-4 py-4 space-y-4">
+              {allPdfCategories.map((cat) => {
+                const category = getCategoryById(cat.id);
+                return (
+                  <div key={cat.id} className="space-y-1">
+                    <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground" style={{ color: cat.color }}>
+                      {cat.label}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                      {cat.tools.map((tool) => (
+                        <Link
+                          key={tool.slug}
+                          href={`/tools/${tool.slug}`}
+                          onClick={() => setMobileOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-muted"
+                        >
+                          <div className="w-7 h-7 flex items-center justify-center flex-shrink-0">
+                            <ToolIcon slug={tool.slug} size={28} />
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-semibold text-foreground leading-snug">{tool.name}</p>
+                            {tool.description && (
+                              <p className="text-[11px] text-muted-foreground leading-snug truncate">{tool.description}</p>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
