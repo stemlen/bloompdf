@@ -1,5 +1,6 @@
 "use client";
 
+import NextImage from "next/image";
 import { useState, useEffect, useRef } from "react";
 import {
   Sparkles, Clock, Star,
@@ -11,7 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useRecent } from "@/lib/hooks/useRecent";
-import { categories } from "@/lib/categories";
+import { categories, getCategoryById, getCategoryBgStyle } from "@/lib/categories";
 import { getToolsByCategory, tools as allTools } from "@/lib/tools";
 import { CategorySection } from "@/components/dashboard/CategorySection";
 import { ToolCard } from "@/components/dashboard/ToolCard";
@@ -35,9 +36,9 @@ const categoryIcons: Record<string, LucideIcon> = {
 };
 
 const STATS = [
-  { icon: FileText, label: `${allTools.length} Tools`, sub: "All in one place", color: "#E8607A", bg: "#FFF0F3" },
-  { icon: Zap, label: "Instant", sub: "Processed in seconds", color: "#0D9488", bg: "#F0FDFA" },
-  { icon: Shield, label: "Private", sub: "Files never stored", color: "#2563EB", bg: "#EFF6FF" },
+  { icon: FileText, label: `${allTools.length} Tools`, sub: "All in one place", color: "#E8607A", catId: "organize" },
+  { icon: Zap, label: "Instant", sub: "Processed in seconds", color: "#0D9488", catId: "optimize" },
+  { icon: Shield, label: "Private", sub: "Files never stored", color: "#2563EB", catId: "security" },
 ];
 
 // ─── Sub-components ────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ function SectionHeading({
   countBg,
 }: {
   icon: LucideIcon;
-  iconBg: string;
+  iconBg?: string;
   iconColor: string;
   title: string;
   count?: number;
@@ -63,7 +64,7 @@ function SectionHeading({
     <div className="flex items-center gap-3 mb-6">
       <div
         className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: iconBg }}
+        style={iconBg ? { backgroundColor: iconBg } : { backgroundColor: "var(--muted)" }}
       >
         <Icon className="w-4 h-4" style={{ color: iconColor }} />
       </div>
@@ -73,7 +74,7 @@ function SectionHeading({
       {count !== undefined && (
         <span
           className="text-[11px] font-bold px-2 py-0.5 rounded-full tabular-nums"
-          style={{ backgroundColor: countBg ?? "#F3F3F1", color: countColor ?? "#737373" }}
+          style={{ backgroundColor: countBg ?? "var(--muted)", color: countColor ?? "var(--muted-foreground)" }}
         >
           {count}
         </span>
@@ -98,7 +99,7 @@ export default function HomePage() {
     : categories.filter((c) => c.id === activeCategory);
 
   return (
-    <div className="min-h-screen bg-muted">
+    <div className="min-h-screen bg-muted/40">
 
       {/* ════════════════════════════════════════════════════
           HERO
@@ -109,7 +110,7 @@ export default function HomePage() {
           className="absolute inset-0 pointer-events-none"
           style={{
             backgroundImage:
-              "linear-gradient(to right, #E4E4E2 1px, transparent 1px), linear-gradient(to bottom, #E4E4E2 1px, transparent 1px)",
+              "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
             backgroundSize: "40px 40px",
             opacity: 0.35,
           }}
@@ -118,7 +119,7 @@ export default function HomePage() {
         <div
           className="absolute -right-40 top-0 w-[600px] h-[400px] pointer-events-none"
           style={{
-            background: "radial-gradient(ellipse at top right, rgba(232,96,122,0.06) 0%, transparent 65%)",
+            background: "radial-gradient(ellipse at top right, rgba(232,96,122,0.1) 0%, transparent 65%)",
           }}
         />
 
@@ -128,9 +129,9 @@ export default function HomePage() {
             {/* Left side: text and badges */}
             <div className="max-w-2xl">
               {/* Eyebrow badge */}
-              <div className="inline-flex items-center gap-2 bg-[#FFF0F3] border border-[#FFC5D3] rounded-full px-3.5 py-1.5 mb-6">
+              <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-3.5 py-1.5 mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E8607A] flex-shrink-0 animate-bloom-pulse" />
-                <span className="text-[12px] font-semibold text-[#E8607A]">
+                <span className="text-[12px] font-semibold text-primary">
                   {allTools.length} tools · 100% free · No sign-up
                 </span>
               </div>
@@ -152,6 +153,7 @@ export default function HomePage() {
               <div className="flex flex-wrap gap-3">
                 {STATS.map((s) => {
                   const Icon = s.icon;
+                  const cat = getCategoryById(s.catId);
                   return (
                     <div
                       key={s.label}
@@ -159,7 +161,7 @@ export default function HomePage() {
                     >
                       <div
                         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: s.bg }}
+                        style={getCategoryBgStyle(cat)}
                       >
                         <Icon className="w-3.5 h-3.5" style={{ color: s.color }} />
                       </div>
@@ -181,7 +183,7 @@ export default function HomePage() {
               <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-blue-600/10 blur-[80px] rounded-full pointer-events-none" />
 
               {/* Main PDF Mockup - with floating animation */}
-              <div className="relative z-10 w-[320px] sm:w-[440px] bg-muted rounded-2xl border border-border shadow-[0_30px_80px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-float flex flex-col">
+              <div className="relative z-10 w-[320px] sm:w-[440px] bg-muted rounded-2xl border border-border shadow-2xl overflow-hidden animate-float flex flex-col">
                 
                 {/* Mac-style Window Header */}
                 <div className="h-10 bg-card border-b border-border flex items-center px-4 gap-4 flex-shrink-0">
@@ -203,7 +205,7 @@ export default function HomePage() {
                 {/* Toolbar */}
                 <div className="h-11 bg-card border-b border-border flex items-center px-4 justify-between flex-shrink-0">
                   <div className="flex items-center gap-1.5">
-                    <div className="p-1.5 bg-[#FFF0F3] text-[#E8607A] rounded-lg border border-[#FFC5D3] shadow-sm">
+                    <div className="p-1.5 bg-primary/10 text-primary rounded-lg border border-primary/20 shadow-sm">
                       <MousePointer2 className="w-3.5 h-3.5" />
                     </div>
                     <div className="p-1.5 text-muted-foreground hover:bg-muted rounded-lg">
@@ -224,26 +226,21 @@ export default function HomePage() {
                 </div>
 
                 {/* Workspace Area */}
-                <div className="flex flex-1 min-h-[300px] sm:min-h-[360px] bg-muted">
+                <div className="flex flex-1 min-h-[300px] sm:min-h-[360px] bg-muted/60">
                   {/* Left Sidebar (Thumbnails) */}
-                  <div className="w-[100px] hidden sm:flex flex-col gap-3 p-3 border-r border-border bg-muted overflow-hidden">
-                    <div className="aspect-[3/4] w-full bg-card rounded shadow-sm border-2 border-[#E8607A] relative p-1">
-                      <div className="w-full h-1 bg-[#E8607A]/20 mb-1 rounded-sm" />
-                      <div className="w-3/4 h-1 bg-[#E4E4E2] mb-0.5 rounded-sm" />
-                      <div className="w-1/2 h-1 bg-[#E4E4E2] rounded-sm" />
-                      <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#E8607A] rounded-full border-2 border-[#F7F7F6] flex items-center justify-center">
+                  <div className="w-[100px] hidden sm:flex flex-col gap-3 p-3 border-r border-border bg-card/50 overflow-hidden">
+                    <div className="aspect-[3/4] w-full bg-card rounded shadow-sm border-2 border-primary relative p-1">
+                      <div className="w-full h-1 bg-primary/20 mb-1 rounded-sm" />
+                      <div className="w-3/4 h-1 bg-muted-foreground/30 mb-0.5 rounded-sm" />
+                      <div className="w-1/2 h-1 bg-muted-foreground/30 rounded-sm" />
+                      <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full border-2 border-card flex items-center justify-center">
                         <span className="text-[8px] font-bold text-white leading-none">1</span>
                       </div>
                     </div>
                     <div className="aspect-[3/4] w-full bg-card/60 rounded border border-border p-1">
                        <div className="w-full h-8 bg-muted mb-1 rounded-sm" />
-                       <div className="w-full h-1 bg-[#E4E4E2] mb-0.5 rounded-sm" />
-                       <div className="w-full h-1 bg-[#E4E4E2] rounded-sm" />
-                    </div>
-                    <div className="aspect-[3/4] w-full bg-card/60 rounded border border-border p-1">
-                       <div className="w-full h-1 bg-[#E4E4E2] mb-0.5 rounded-sm" />
-                       <div className="w-full h-1 bg-[#E4E4E2] mb-0.5 rounded-sm" />
-                       <div className="w-full h-1 bg-[#E4E4E2] mb-0.5 rounded-sm" />
+                       <div className="w-full h-1 bg-muted-foreground/30 mb-0.5 rounded-sm" />
+                       <div className="w-full h-1 bg-muted-foreground/30 rounded-sm" />
                     </div>
                   </div>
 
@@ -254,67 +251,53 @@ export default function HomePage() {
                       
                       {/* Document Header */}
                       <div className="flex justify-between items-start mb-6">
-                        <div className="w-8 h-8 bg-[#E8607A] rounded flex items-center justify-center">
+                        <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
                           <Zap className="w-4 h-4 text-white" />
                         </div>
                         <div className="text-right">
-                          <div className="w-16 h-2 bg-[#E4E4E2] rounded-full mb-1 ml-auto" />
+                          <div className="w-16 h-2 bg-muted rounded-full mb-1 ml-auto" />
                           <div className="w-10 h-1.5 bg-muted rounded-full ml-auto" />
                         </div>
                       </div>
 
                       {/* Document Title */}
                       <div className="space-y-1.5 mb-5">
-                        <div className="w-full h-4 bg-[#111111]/80 rounded-md" />
-                        <div className="w-3/4 h-4 bg-[#111111]/80 rounded-md" />
+                        <div className="w-full h-4 bg-foreground/80 rounded-md" />
+                        <div className="w-3/4 h-4 bg-foreground/80 rounded-md" />
                       </div>
 
-                      {/* Highlighted text block (Edit Mode Simulation) */}
+                      {/* Highlighted text block */}
                       <div className="relative mb-4 group">
-                        <div className="absolute -inset-1.5 border border-[#E8607A]/50 bg-[#FFF0F3]/30 rounded" />
+                        <div className="absolute -inset-1.5 border border-primary/40 bg-primary/10 rounded" />
                         <div className="relative space-y-1.5">
-                          <div className="w-full h-2 bg-[#555555]/80 rounded-full" />
-                          <div className="w-[95%] h-2 bg-[#555555]/80 rounded-full" />
-                          <div className="w-[85%] h-2 bg-[#555555]/80 rounded-full" />
+                          <div className="w-full h-2 bg-muted-foreground/50 rounded-full" />
+                          <div className="w-[95%] h-2 bg-muted-foreground/50 rounded-full" />
+                          <div className="w-[85%] h-2 bg-muted-foreground/50 rounded-full" />
                         </div>
                         {/* Fake cursor */}
-                        <div className="absolute bottom-0 right-[15%] w-px h-3 bg-[#E8607A] animate-pulse" />
+                        <div className="absolute bottom-0 right-[15%] w-px h-3 bg-primary animate-pulse" />
                       </div>
 
-                      {/* Real-looking chart/image block */}
+                      {/* Chart block */}
                       <div className="w-full h-20 bg-muted border border-border rounded-lg mb-4 flex items-end p-2 gap-1.5">
-                        <div className="w-1/4 bg-[#E8607A]/40 h-[40%] rounded-sm" />
-                        <div className="w-1/4 bg-[#E8607A]/60 h-[70%] rounded-sm" />
-                        <div className="w-1/4 bg-[#E8607A]/80 h-[50%] rounded-sm" />
-                        <div className="w-1/4 bg-[#E8607A] h-[90%] rounded-sm relative">
-                           <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-card border border-[#E8607A]" />
+                        <div className="w-1/4 bg-primary/40 h-[40%] rounded-sm" />
+                        <div className="w-1/4 bg-primary/60 h-[70%] rounded-sm" />
+                        <div className="w-1/4 bg-primary/80 h-[50%] rounded-sm" />
+                        <div className="w-1/4 bg-primary h-[90%] rounded-sm relative">
+                           <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-card border border-primary" />
                         </div>
                       </div>
-
-                      <div className="flex gap-4">
-                         <div className="flex-1 space-y-1.5">
-                           <div className="w-full h-1.5 bg-[#E4E4E2] rounded-full" />
-                           <div className="w-5/6 h-1.5 bg-[#E4E4E2] rounded-full" />
-                           <div className="w-full h-1.5 bg-[#E4E4E2] rounded-full" />
-                         </div>
-                         <div className="flex-1 space-y-1.5">
-                           <div className="w-full h-1.5 bg-[#E4E4E2] rounded-full" />
-                           <div className="w-4/5 h-1.5 bg-[#E4E4E2] rounded-full" />
-                           <div className="w-full h-1.5 bg-[#E4E4E2] rounded-full" />
-                         </div>
-                      </div>
-
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Floating Action Chips - Positioned intentionally around the UI */}
+              {/* Floating Action Chips */}
               
               {/* Combine / Merge */}
               <div className="absolute top-[15%] right-[-10px] sm:right-[-30px] z-20 animate-float-delayed">
-                <div className="flex items-center gap-2.5 bg-card/90 backdrop-blur-md border border-border shadow-lg rounded-xl py-2 px-3">
-                  <div className="w-7 h-7 rounded-lg bg-[#EFF6FF] flex items-center justify-center border border-[#BFDBFE]">
+                <div className="flex items-center gap-2.5 bg-card border border-border shadow-xl rounded-xl py-2 px-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center border border-blue-500/30" style={getCategoryBgStyle(getCategoryById("organize"))}>
                     <Combine className="w-3.5 h-3.5 text-[#2563EB]" />
                   </div>
                   <div className="pr-1">
@@ -326,8 +309,8 @@ export default function HomePage() {
 
               {/* Compress */}
               <div className="absolute bottom-[20%] right-[-5px] sm:right-[-20px] z-20 animate-float-fast">
-                <div className="flex items-center gap-2.5 bg-card/90 backdrop-blur-md border border-border shadow-lg rounded-xl py-2 px-3">
-                  <div className="w-7 h-7 rounded-lg bg-[#F0FDFA] flex items-center justify-center border border-[#99F6E4]">
+                <div className="flex items-center gap-2.5 bg-card border border-border shadow-xl rounded-xl py-2 px-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center border border-teal-500/30" style={getCategoryBgStyle(getCategoryById("optimize"))}>
                     <PackageMinus className="w-3.5 h-3.5 text-[#0D9488]" />
                   </div>
                   <div className="pr-1">
@@ -339,30 +322,30 @@ export default function HomePage() {
 
               {/* Split */}
               <div className="absolute bottom-[10%] left-2 sm:left-[-20px] z-20 animate-float-slow">
-                <div className="flex items-center gap-2 bg-card/90 backdrop-blur-md border border-border shadow-lg rounded-full py-1.5 px-3">
-                  <Scissors className="w-3 h-3 text-[#B45309]" />
+                <div className="flex items-center gap-2 bg-card border border-border shadow-xl rounded-full py-1.5 px-3">
+                  <Scissors className="w-3 h-3 text-amber-500" />
                   <span className="text-[11px] font-bold text-foreground">Extract pages</span>
                 </div>
               </div>
 
               {/* Edit (Hero Chip) */}
               <div className="absolute top-[40%] left-[-15px] sm:left-[-40px] z-20 animate-float">
-                <div className="flex items-center gap-2.5 bg-[#111111] shadow-[0_12px_24px_-4px_rgba(17,17,17,0.3)] rounded-xl py-2.5 px-4 border border-[#333333]">
-                  <div className="w-7 h-7 rounded-lg bg-[#E8607A] flex items-center justify-center shadow-inner">
+                <div className="flex items-center gap-2.5 bg-card shadow-2xl rounded-xl py-2.5 px-4 border border-border">
+                  <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-inner">
                     <PenLine className="w-3.5 h-3.5 text-white" />
                   </div>
                   <div>
-                    <span className="block text-[13px] font-bold text-white leading-tight">Edit PDF</span>
-                    <span className="block text-[10px] text-[#A0A0A0] leading-tight">Text & Images</span>
+                    <span className="block text-[13px] font-bold text-foreground leading-tight">Edit PDF</span>
+                    <span className="block text-[10px] text-muted-foreground leading-tight">Text & Images</span>
                   </div>
                 </div>
               </div>
 
               {/* Success badge */}
               <div className="absolute top-[5%] left-[20%] sm:left-[10%] z-20 animate-fade-in" style={{ animationDelay: '1s', animationFillMode: 'both' }}>
-                 <div className="flex items-center gap-1.5 bg-[#F0FDF4] border border-[#BBF7D0] shadow-sm rounded-full py-1 px-2.5">
-                   <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
-                   <span className="text-[10px] font-semibold text-[#16A34A]">Auto-saved</span>
+                 <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 shadow-sm rounded-full py-1 px-2.5">
+                   <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                   <span className="text-[10px] font-semibold text-emerald-500">Auto-saved</span>
                  </div>
               </div>
 
@@ -381,12 +364,12 @@ export default function HomePage() {
             <section id="favorites" className="scroll-mt-20 pt-10">
               <SectionHeading
                 icon={Star}
-                iconBg="#FFF7ED"
+                iconBg="rgba(245,158,11,0.15)"
                 iconColor="#F59E0B"
                 title="Favorites"
                 count={favoriteTools.length}
-                countColor="#B45309"
-                countBg="#FEF3C7"
+                countColor="#F59E0B"
+                countBg="rgba(245,158,11,0.15)"
               />
               <div className="scroll-strip flex gap-3 pb-2">
                 {favoriteTools.map((tool) => (
@@ -407,8 +390,8 @@ export default function HomePage() {
             <section id="recent" className="scroll-mt-20 pt-10">
               <SectionHeading
                 icon={Clock}
-                iconBg="#F3F3F1"
-                iconColor="#737373"
+                iconBg="var(--muted)"
+                iconColor="var(--muted-foreground)"
                 title="Recently Used"
                 count={recentTools.length}
               />
@@ -430,7 +413,7 @@ export default function HomePage() {
           <section id="popular" className="scroll-mt-20 pt-10">
             <SectionHeading
               icon={Sparkles}
-              iconBg="#FFF0F3"
+              iconBg="rgba(232,96,122,0.15)"
               iconColor="#E8607A"
               title="Most Popular"
             />
@@ -465,8 +448,8 @@ export default function HomePage() {
                 className={cn(
                   "h-8 px-3.5 rounded-full text-[12px] font-semibold border transition-all duration-150",
                   activeCategory === "all"
-                    ? "bg-[#111111] text-white border-[#111111] shadow-sm"
-                    : "bg-card text-muted-foreground border-border hover:border-[#A0A0A0] hover:text-foreground"
+                    ? "bg-foreground text-background border-foreground shadow-sm font-bold"
+                    : "bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
                 )}
               >
                 All categories
@@ -479,29 +462,18 @@ export default function HomePage() {
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
                     className={cn(
-                      "h-8 px-3.5 rounded-full text-[12px] font-semibold border transition-all duration-150 flex items-center gap-1.5"
+                      "h-8 px-3.5 rounded-full text-[12px] font-semibold border transition-all duration-150 flex items-center gap-1.5",
+                      isActive
+                        ? "text-white shadow-sm"
+                        : "bg-card text-muted-foreground border-border hover:text-foreground"
                     )}
                     style={
                       isActive
-                        ? { backgroundColor: cat.color, color: "#fff", borderColor: cat.color }
-                        : { backgroundColor: "#fff", color: "#555555", borderColor: "#E4E4E2" }
+                        ? { backgroundColor: cat.color, borderColor: cat.color }
+                        : { ...getCategoryBgStyle(cat), borderColor: 'var(--border)' }
                     }
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = cat.color;
-                        (e.currentTarget as HTMLButtonElement).style.color = cat.color;
-                        (e.currentTarget as HTMLButtonElement).style.backgroundColor = cat.lightBg;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#E4E4E2";
-                        (e.currentTarget as HTMLButtonElement).style.color = "#555555";
-                        (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#fff";
-                      }
-                    }}
                   >
-                    <Icon className="w-3 h-3 flex-shrink-0" style={isActive ? { color: "#fff" } : { color: cat.color }} />
+                    <Icon className="w-3 h-3 flex-shrink-0" style={{ color: isActive ? "#fff" : cat.color }} />
                     {cat.label}
                   </button>
                 );
@@ -528,10 +500,7 @@ export default function HomePage() {
           {/* ── Footer strip ───────────────────────────────────────── */}
           <div className="mt-16 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-[#FFF0F3] border border-[#FFE0E8] rounded-lg flex items-center justify-center">
-                <FileText className="w-3.5 h-3.5 text-[#E8607A]" />
-              </div>
-              <span className="text-[13px] font-bold text-foreground">BloomPDF</span>
+              <NextImage src="/BloomPDF.png" alt="BloomPDF" width={260} height={70} className="h-18 sm:h-20 w-auto object-contain scale-150 origin-left" />
               <span className="text-[12px] text-muted-foreground">— Professional PDF Workspace</span>
             </div>
             <div className="flex items-center gap-2">

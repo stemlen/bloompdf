@@ -20,7 +20,7 @@ import {
   Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { categories } from "@/lib/categories";
+import { categories, getCategoryBgStyle } from "@/lib/categories";
 
 const categoryIcons: Record<string, LucideIcon> = {
   organize: LayoutGrid,
@@ -53,23 +53,18 @@ export function Sidebar() {
       <div
         className={cn(
           "flex items-center h-[60px] px-4 border-b border-border flex-shrink-0",
-          collapsed && "justify-center px-0"
+          collapsed && "justify-center px-2"
         )}
       >
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-[#FFF0F3] border border-[#FFE0E8] group-hover:border-[#FFC5D3] transition-all shadow-sm">
-            <Image src="/bloompdf-logo.png" alt="BloomPDF" width={28} height={28} className="object-contain" />
-          </div>
-          {!collapsed && (
-            <div>
-              <span className="font-bold text-[15px] text-foreground tracking-tight leading-none">
-                BloomPDF
-              </span>
-              <span className="block text-[10px] text-muted-foreground font-medium leading-none mt-0.5">
-                PDF Workspace
-              </span>
-            </div>
-          )}
+        <Link href="/" className="flex items-center overflow-visible">
+          <Image
+            src="/BloomPDF.png"
+            alt="BloomPDF"
+            width={300}
+            height={80}
+            className={cn("h-16 sm:h-18 w-auto object-contain scale-150 origin-left", collapsed && "w-10 overflow-hidden object-left scale-100")}
+            priority
+          />
         </Link>
       </div>
 
@@ -86,7 +81,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[#FFF0F3] text-[#E8607A]"
+                  ? "bg-primary/10 text-primary font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 collapsed && "justify-center px-2"
               )}
@@ -123,7 +118,7 @@ export function Sidebar() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 collapsed && "justify-center px-2"
               )}
-              style={isActive ? { backgroundColor: cat.lightBg, color: cat.color } : {}}
+              style={isActive ? { ...getCategoryBgStyle(cat), color: cat.color } : {}}
               title={collapsed ? cat.label : undefined}
             >
               {/* Color dot */}

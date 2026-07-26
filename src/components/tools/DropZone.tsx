@@ -105,8 +105,8 @@ export function DropZone({
             "relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-all select-none",
             hasFiles ? "py-5" : "py-14",
             isDragOver
-              ? "border-[#E8607A] bg-[#FFF0F3] scale-[1.005]"
-              : "border-[#D1D1CE] bg-[#FAFAFA] hover:border-[#A1A19D] hover:bg-card"
+              ? "border-primary bg-primary/10 scale-[1.005]"
+              : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
           )}
           role="button"
           tabIndex={0}
@@ -134,26 +134,23 @@ export function DropZone({
             <div
               className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center mb-1 transition-colors",
-                isDragOver ? "bg-[#E8607A]" : "bg-[#F3F3F2]"
+                isDragOver ? "bg-primary text-white" : "bg-muted text-muted-foreground"
               )}
             >
               <Upload
-                className={cn(
-                  "w-5 h-5 transition-colors",
-                  isDragOver ? "text-white" : "text-[#6B7280]"
-                )}
+                className="w-5 h-5 transition-colors"
               />
             </div>
             <div className="text-center">
               <p className="text-[14px] font-semibold text-foreground">
                 {isDragOver ? "Drop files here" : "Drag & drop files here"}
               </p>
-              <p className="text-[13px] text-[#6B7280] mt-0.5">
+              <p className="text-[13px] text-muted-foreground mt-0.5">
                 or{" "}
-                <span className="text-[#E8607A] font-medium">browse files</span>
+                <span className="text-primary font-medium">browse files</span>
               </p>
             </div>
-            <p className="text-[11px] text-[#A1A19D] mt-1">
+            <p className="text-[11px] text-muted-foreground mt-1">
               {acceptedTypes.map((t) => t.toUpperCase().replace(".", "")).join(", ")}
               {acceptMultiple && maxFiles && ` • Up to ${maxFiles} files`}
               {" • Max 50 MB"}
@@ -170,18 +167,18 @@ export function DropZone({
             return (
               <div
                 key={f.id}
-                className="flex items-center gap-3 bg-card border border-[#E5E5E3] rounded-lg px-3.5 py-2.5 group animate-slide-up"
+                className="flex items-center gap-3 bg-card border border-border rounded-lg px-3.5 py-2.5 group animate-slide-up"
               >
-                <div className="w-8 h-8 bg-[#F3F3F2] rounded-md flex items-center justify-center flex-shrink-0">
-                  <FileIcon className="w-4 h-4 text-[#6B7280]" />
+                <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
+                  <FileIcon className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-medium text-foreground truncate">{f.name}</p>
-                  <p className="text-[11px] text-[#A1A19D]">{formatFileSize(f.size)}</p>
+                  <p className="text-[11px] text-muted-foreground">{formatFileSize(f.size)}</p>
                 </div>
                 <button
                   onClick={() => removeFile(f.id)}
-                  className="w-6 h-6 rounded-full text-[#A1A19D] hover:text-[#E8607A] hover:bg-[#FFF0F3] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  className="w-6 h-6 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                   aria-label={`Remove ${f.name}`}
                 >
                   <X className="w-3.5 h-3.5" />

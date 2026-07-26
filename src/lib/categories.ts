@@ -4,6 +4,7 @@ export interface Category {
   description: string;
   color: string;
   lightBg: string;
+  darkBg: string;
   midBg: string;
   textColor: string;
   borderColor: string;
@@ -19,6 +20,7 @@ export const categories: Category[] = [
     description: "Merge, split, reorder, and manage your PDF pages",
     color: "#2563EB",
     lightBg: "#EFF6FF",
+    darkBg: "rgba(37,99,235,0.16)",
     midBg: "#DBEAFE",
     bgColor: "bg-[#EFF6FF]",
     textColor: "text-[#2563EB]",
@@ -32,6 +34,7 @@ export const categories: Category[] = [
     description: "Compress, repair, and enhance your PDF files",
     color: "#0D9488",
     lightBg: "#F0FDFA",
+    darkBg: "rgba(13,148,136,0.16)",
     midBg: "#CCFBF1",
     bgColor: "bg-[#F0FDFA]",
     textColor: "text-[#0D9488]",
@@ -45,6 +48,7 @@ export const categories: Category[] = [
     description: "Transform documents and images into PDF format",
     color: "#16A34A",
     lightBg: "#F0FDF4",
+    darkBg: "rgba(22,163,74,0.16)",
     midBg: "#DCFCE7",
     bgColor: "bg-[#F0FDF4]",
     textColor: "text-[#16A34A]",
@@ -58,6 +62,7 @@ export const categories: Category[] = [
     description: "Export your PDF to other document formats",
     color: "#EA580C",
     lightBg: "#FFF7ED",
+    darkBg: "rgba(234,88,12,0.16)",
     midBg: "#FED7AA",
     bgColor: "bg-[#FFF7ED]",
     textColor: "text-[#EA580C]",
@@ -71,6 +76,7 @@ export const categories: Category[] = [
     description: "Modify, annotate, and transform your PDF content",
     color: "#7C3AED",
     lightBg: "#F5F3FF",
+    darkBg: "rgba(124,58,237,0.16)",
     midBg: "#EDE9FE",
     bgColor: "bg-[#F5F3FF]",
     textColor: "text-[#7C3AED]",
@@ -84,6 +90,7 @@ export const categories: Category[] = [
     description: "Protect, sign, and manage PDF forms",
     color: "#DC2626",
     lightBg: "#FEF2F2",
+    darkBg: "rgba(220,38,38,0.16)",
     midBg: "#FEE2E2",
     bgColor: "bg-[#FEF2F2]",
     textColor: "text-[#DC2626]",
@@ -97,6 +104,7 @@ export const categories: Category[] = [
     description: "AI-powered text recognition and extraction",
     color: "#4F46E5",
     lightBg: "#EEF2FF",
+    darkBg: "rgba(79,70,229,0.16)",
     midBg: "#E0E7FF",
     bgColor: "bg-[#EEF2FF]",
     textColor: "text-[#4F46E5]",
@@ -109,3 +117,11 @@ export const categories: Category[] = [
 export function getCategoryById(id: string): Category | undefined {
   return categories.find((c) => c.id === id);
 }
+
+export function getCategoryBgStyle(category?: Category) {
+  if (!category) return {};
+  return {
+    backgroundColor: `var(--cat-${category.id}-bg, ${category.lightBg})`,
+  };
+}
+

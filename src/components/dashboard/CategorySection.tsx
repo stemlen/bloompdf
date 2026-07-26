@@ -8,6 +8,7 @@ import {
 import { ToolCard } from "./ToolCard";
 import type { Tool } from "@/lib/tools";
 import type { Category } from "@/lib/categories";
+import { getCategoryBgStyle } from "@/lib/categories";
 
 const categoryIcons: Record<string, LucideIcon> = {
   organize: LayoutGrid,
@@ -47,7 +48,7 @@ export function CategorySection({
           />
           <div
             className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: category.lightBg }}
+            style={getCategoryBgStyle(category)}
           >
             <Icon className="w-6 h-6" style={{ color: category.color }} />
           </div>
@@ -58,7 +59,7 @@ export function CategorySection({
               </h2>
               <span
                 className="text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
-                style={{ backgroundColor: category.lightBg, color: category.color }}
+                style={{ ...getCategoryBgStyle(category), color: category.color }}
               >
                 {tools.length}
               </span>

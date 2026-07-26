@@ -31,10 +31,10 @@ function SliderOption({
         step={option.step ?? 1}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 bg-[#E5E5E3] rounded-full appearance-none cursor-pointer accent-[#E8607A]"
+        className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-[#E8607A]"
       />
       {option.description && (
-        <p className="text-[11px] text-[#A1A19D]">{option.description}</p>
+        <p className="text-[11px] text-muted-foreground">{option.description}</p>
       )}
     </div>
   );
@@ -60,8 +60,8 @@ function RadioOption({
             className={cn(
               "px-3 py-1.5 rounded-lg border text-[12px] font-medium transition-all",
               value === opt.value
-                ? "border-[#E8607A] bg-[#FFF0F3] text-[#E8607A]"
-                : "border-[#E5E5E3] bg-card text-[#6B7280] hover:border-[#A1A19D] hover:text-foreground"
+                ? "border-primary bg-primary/10 text-primary font-semibold"
+                : "border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground"
             )}
           >
             {opt.label}
@@ -87,7 +87,7 @@ function SelectOption({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-9 px-3 bg-card border border-[#E5E5E3] rounded-lg text-[13px] text-foreground focus:outline-none focus:border-[#E8607A] focus:ring-1 focus:ring-[#E8607A]/20 transition-all appearance-none cursor-pointer"
+        className="w-full h-9 px-3 bg-card border border-border rounded-lg text-[13px] text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all appearance-none cursor-pointer"
       >
         {option.options?.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -116,10 +116,10 @@ function TextOption({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={option.placeholder}
-        className="w-full h-9 px-3 bg-card border border-[#E5E5E3] rounded-lg text-[13px] text-foreground placeholder:text-[#A1A19D] focus:outline-none focus:border-[#E8607A] focus:ring-1 focus:ring-[#E8607A]/20 transition-all"
+        className="w-full h-9 px-3 bg-card border border-border rounded-lg text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
       />
       {option.description && (
-        <p className="text-[11px] text-[#A1A19D]">{option.description}</p>
+        <p className="text-[11px] text-muted-foreground">{option.description}</p>
       )}
     </div>
   );
@@ -144,7 +144,7 @@ function NumberOption({
         min={option.min}
         max={option.max}
         placeholder={option.placeholder}
-        className="w-full h-9 px-3 bg-card border border-[#E5E5E3] rounded-lg text-[13px] text-foreground placeholder:text-[#A1A19D] focus:outline-none focus:border-[#E8607A] focus:ring-1 focus:ring-[#E8607A]/20 transition-all"
+        className="w-full h-9 px-3 bg-card border border-border rounded-lg text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
       />
     </div>
   );
@@ -167,10 +167,10 @@ function PageRangeOption({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={option.placeholder}
-        className="w-full h-9 px-3 bg-card border border-[#E5E5E3] rounded-lg text-[13px] text-foreground placeholder:text-[#A1A19D] font-mono focus:outline-none focus:border-[#E8607A] focus:ring-1 focus:ring-[#E8607A]/20 transition-all"
+        className="w-full h-9 px-3 bg-card border border-border rounded-lg text-[13px] text-foreground placeholder:text-muted-foreground font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
       />
       {option.description && (
-        <p className="text-[11px] text-[#A1A19D]">{option.description}</p>
+        <p className="text-[11px] text-muted-foreground">{option.description}</p>
       )}
     </div>
   );
@@ -180,7 +180,7 @@ export function ToolOptions({ tool, values, onChange }: ToolOptionsProps) {
   if (tool.options.length === 0) return null;
 
   return (
-    <div className="bg-card border border-[#E5E5E3] rounded-xl p-5 space-y-5">
+    <div className="bg-card border border-border rounded-xl p-5 space-y-5">
       <h3 className="text-[13px] font-semibold text-foreground uppercase tracking-wider">
         Options
       </h3>

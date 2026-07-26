@@ -22,8 +22,8 @@ export const metadata: Metadata = {
     "BloomPDF",
   ],
   icons: {
-    icon: "/favicon.png",
-    apple: "/favicon.png",
+    icon: "/BloomPDF.png",
+    apple: "/BloomPDF.png",
   },
 };
 

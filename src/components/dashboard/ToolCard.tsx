@@ -10,7 +10,7 @@ import {
   Star, ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCategoryById } from "@/lib/categories";
+import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
 import type { Tool } from "@/lib/tools";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -49,7 +49,7 @@ export function ToolCard({
         >
           <div
             className="card-icon-container w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200"
-            style={{ backgroundColor: category?.lightBg }}
+            style={getCategoryBgStyle(category)}
           >
             <Icon className="w-5 h-5" style={{ color: category?.color }} />
           </div>
@@ -106,7 +106,7 @@ export function ToolCard({
             "card-icon-container rounded-2xl flex items-center justify-center flex-shrink-0 mb-5 transition-all duration-200",
             iconSize
           )}
-          style={{ backgroundColor: category?.lightBg }}
+          style={getCategoryBgStyle(category)}
         >
           <Icon className={iconInner} style={{ color: category?.color }} />
         </div>
@@ -132,11 +132,11 @@ export function ToolCard({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-3 border-t border-[#F3F3F1] flex items-center justify-between">
+        <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
           <span
             className="text-[10.5px] font-bold px-2 py-0.5 rounded-md tracking-wide"
             style={{
-              backgroundColor: category?.lightBg,
+              ...getCategoryBgStyle(category),
               color: category?.color,
             }}
           >
@@ -158,8 +158,8 @@ export function ToolCard({
             "opacity-0 group-hover:opacity-100",
             isFavorite && "opacity-100",
             isFavorite
-              ? "text-amber-500 bg-amber-50"
-              : "text-muted-foreground hover:text-amber-500 hover:bg-amber-50 bg-card/80"
+              ? "text-amber-500 bg-amber-50 dark:bg-amber-950/40"
+              : "text-muted-foreground hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 bg-card/80"
           )}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
           title={isFavorite ? "Remove from favorites" : "Add to favorites"}

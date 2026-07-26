@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
 
 :root {
   /* ── BloomPDF Core Palette ────────────────────────────── */
@@ -52,54 +52,66 @@
   /* Typography */
   --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.04);
-  --shadow-card: 0 2px 8px -2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
-  --shadow-card-hover: 0 8px 24px -4px rgba(232,96,122,0.10), 0 0 0 1px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 16px -4px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.05);
-  --shadow-lg: 0 12px 32px -8px rgba(0,0,0,0.14), 0 4px 8px -4px rgba(0,0,0,0.06);
+  /* Category backgrounds */
+  --cat-organize-bg: #EFF6FF;
+  --cat-optimize-bg: #F0FDFA;
+  --cat-convert-to-bg: #F0FDF4;
+  --cat-convert-from-bg: #FFF7ED;
+  --cat-edit-bg: #F5F3FF;
+  --cat-security-bg: #FEF2F2;
+  --cat-intelligence-bg: #EEF2FF;
+  --cat-forms-bg: #EEF2FF;
 }
 
 .dark {
-  /* Core palette - Dark */
-  --background: #0F1115;
-  --foreground: #F5F5F5;
-  --card: #171A21;
-  --card-foreground: #F5F5F5;
-  --popover: #1E222B;
-  --popover-foreground: #F5F5F5;
+  /* Core palette - Pitch Dark SaaS (Obsidian Void Theme) */
+  --background: #030304;
+  --foreground: #F8FAFC;
+  --card: #0A0B0E;
+  --card-foreground: #F8FAFC;
+  --popover: #0E0F14;
+  --popover-foreground: #F8FAFC;
   --primary: #E8607A;
   --primary-foreground: #FFFFFF;
-  --secondary: #1E222B;
-  --secondary-foreground: #F5F5F5;
-  --muted: #1E222B;
-  --muted-foreground: #A1A1AA;
-  --accent: #1E222B;
-  --accent-foreground: #F5F5F5;
+  --secondary: #12141A;
+  --secondary-foreground: #F8FAFC;
+  --muted: #12141A;
+  --muted-foreground: #8E95A5;
+  --accent: #181A22;
+  --accent-foreground: #F8FAFC;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #2D333B;
-  --input: #2D333B;
+  --border: #1C1E26;
+  --input: #1C1E26;
   --ring: #E8607A;
 
   /* Sidebar - Dark */
-  --sidebar-background: #171A21;
-  --sidebar-foreground: #F5F5F5;
+  --sidebar-background: #060709;
+  --sidebar-foreground: #F8FAFC;
   --sidebar-primary: #E8607A;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #1E222B;
-  --sidebar-accent-foreground: #F5F5F5;
-  --sidebar-border: #2D333B;
+  --sidebar-accent: #12141A;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: #1C1E26;
   --sidebar-ring: #E8607A;
 
   /* Shadows - Dark adjustments */
-  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.5);
-  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.6), 0 1px 2px -1px rgba(0,0,0,0.5);
-  --shadow-card: 0 2px 8px -2px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
-  --shadow-card-hover: 0 8px 24px -4px rgba(0,0,0,0.9), 0 0 0 1px rgba(232,96,122,0.5);
-  --shadow-md: 0 4px 16px -4px rgba(0,0,0,0.8), 0 2px 4px -2px rgba(0,0,0,0.6);
-  --shadow-lg: 0 12px 32px -8px rgba(0,0,0,0.9), 0 4px 8px -4px rgba(0,0,0,0.7);
+  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.8);
+  --shadow-sm: 0 2px 4px 0 rgba(0,0,0,0.8);
+  --shadow-card: 0 4px 20px -2px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.07);
+  --shadow-card-hover: 0 12px 32px -4px rgba(0,0,0,0.95), 0 0 0 1px rgba(232,96,122,0.4), 0 0 20px -4px rgba(232,96,122,0.2);
+  --shadow-md: 0 8px 24px -4px rgba(0,0,0,0.9);
+  --shadow-lg: 0 16px 48px -8px rgba(0,0,0,0.95);
+
+  /* Category backgrounds - Dark Translucent Glow */
+  --cat-organize-bg: rgba(37,99,235,0.16);
+  --cat-optimize-bg: rgba(13,148,136,0.16);
+  --cat-convert-to-bg: rgba(22,163,74,0.16);
+  --cat-convert-from-bg: rgba(234,88,12,0.16);
+  --cat-edit-bg: rgba(124,58,237,0.16);
+  --cat-security-bg: rgba(220,38,38,0.16);
+  --cat-intelligence-bg: rgba(79,70,229,0.16);
+  --cat-forms-bg: rgba(79,70,229,0.16);
 }
 
 /* Reset */

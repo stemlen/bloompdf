@@ -11,7 +11,7 @@ import {
   Hash, Droplets, Crop, ClipboardList,
 } from "lucide-react";
 import type { Tool } from "@/lib/tools";
-import { getCategoryById } from "@/lib/categories";
+import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useRecent } from "@/lib/hooks/useRecent";
 import { DropZone, type UploadedFile } from "./DropZone";
@@ -149,11 +149,14 @@ export function ToolShell({ tool }: ToolShellProps) {
         {/* Compact Workspace Header */}
         <div className="h-14 bg-card border-b border-border flex items-center px-4 sm:px-6 justify-between flex-shrink-0 z-10 shadow-xs">
           <div className="flex items-center gap-3">
-             <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shadow-sm border border-border/50", category?.iconBg ?? "bg-[#F3F3F2]")}>
+             <div
+               className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm border border-border/50"
+               style={getCategoryBgStyle(category)}
+             >
                 <Icon className="w-4 h-4" color={category?.color} />
              </div>
              <div>
-                <nav className="flex items-center gap-1.5 text-[10px] text-[#A1A19D] font-bold uppercase tracking-wider mb-0.5">
+                <nav className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">
                   <Link href="/" className="hover:text-foreground transition-colors">Tools</Link>
                   <ChevronRight className="w-2.5 h-2.5" />
                   <Link href={`/#${tool.categoryId}`} className="hover:text-foreground transition-colors">{category?.label}</Link>
@@ -168,7 +171,7 @@ export function ToolShell({ tool }: ToolShellProps) {
                 className={cn(
                   "flex items-center gap-1.5 h-9 px-3 rounded-lg text-[12px] font-bold transition-all border",
                   fav
-                    ? "bg-[#FFF0F3] text-[#E8607A] border-[#FFC5D3] shadow-sm"
+                    ? "bg-primary/10 text-primary border-primary/30 shadow-sm"
                     : "bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground shadow-xs"
                 )}
                 aria-label={fav ? "Remove from favorites" : "Add to favorites"}
@@ -192,10 +195,10 @@ export function ToolShell({ tool }: ToolShellProps) {
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="border-b border-[#E5E5E3] bg-card sticky top-[58px] z-20">
+      <div className="border-b border-border bg-card sticky top-[58px] z-20">
         <div className="max-w-3xl mx-auto px-5 py-3">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-1.5 text-[12px] text-[#A1A19D] mb-3" aria-label="Breadcrumb">
+          <nav className="flex items-center gap-1.5 text-[12px] text-muted-foreground mb-3" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-foreground transition-colors">
               All Tools
             </Link>
@@ -204,16 +207,14 @@ export function ToolShell({ tool }: ToolShellProps) {
               {category?.label}
             </Link>
             <ChevronRight className="w-3 h-3" />
-            <span className="text-[#6B7280] font-medium">{tool.name}</span>
+            <span className="text-muted-foreground font-medium">{tool.name}</span>
           </nav>
 
           {/* Tool identity */}
           <div className="flex items-start gap-4">
             <div
-              className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-                category?.iconBg ?? "bg-[#F3F3F2]"
-              )}
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={getCategoryBgStyle(category)}
             >
               <Icon className="w-5 h-5" color={category?.color} />
             </div>
@@ -228,8 +229,8 @@ export function ToolShell({ tool }: ToolShellProps) {
                     className={cn(
                       "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
                       fav
-                        ? "bg-[#FFF0F3] text-[#E8607A]"
-                        : "text-[#A1A19D] hover:bg-[#F3F3F2] hover:text-[#6B7280]"
+                        ? "bg-primary/10 text-primary font-semibold"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                     aria-label={fav ? "Remove from favorites" : "Add to favorites"}
                   >
@@ -238,7 +239,7 @@ export function ToolShell({ tool }: ToolShellProps) {
                   </button>
                 )}
               </div>
-              <p className="text-[13px] text-[#6B7280] mt-0.5">{tool.description}</p>
+              <p className="text-[13px] text-muted-foreground mt-0.5">{tool.description}</p>
             </div>
           </div>
         </div>
@@ -247,9 +248,9 @@ export function ToolShell({ tool }: ToolShellProps) {
       {/* Content */}
       <div className="max-w-3xl mx-auto px-5 py-8 pb-24 space-y-5">
         {/* Info box */}
-        <div className="flex items-start gap-3 p-4 bg-[#F8F8F7] border border-[#E5E5E3] rounded-xl">
-          <Info className="w-4 h-4 text-[#A1A19D] mt-0.5 flex-shrink-0" />
-          <p className="text-[13px] text-[#6B7280] leading-relaxed">
+        <div className="flex items-start gap-3 p-4 bg-muted/50 border border-border rounded-xl">
+          <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <p className="text-[13px] text-muted-foreground leading-relaxed">
             {tool.longDescription}
           </p>
         </div>
@@ -257,27 +258,27 @@ export function ToolShell({ tool }: ToolShellProps) {
         {renderTool()}
 
         {/* Tips */}
-        <div className="pt-4 border-t border-[#E5E5E3]">
-          <h3 className="text-[12px] font-semibold text-[#A1A19D] uppercase tracking-wider mb-3">
+        <div className="pt-4 border-t border-border">
+          <h3 className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             About this tool
           </h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-card border border-[#E5E5E3] rounded-lg p-3">
-              <p className="text-[11px] text-[#A1A19D] mb-0.5">Output format</p>
+            <div className="bg-card border border-border rounded-lg p-3">
+              <p className="text-[11px] text-muted-foreground mb-0.5">Output format</p>
               <p className="text-[13px] font-semibold text-foreground">{tool.outputFormat}</p>
             </div>
-            <div className="bg-card border border-[#E5E5E3] rounded-lg p-3">
-              <p className="text-[11px] text-[#A1A19D] mb-0.5">Max file size</p>
+            <div className="bg-card border border-border rounded-lg p-3">
+              <p className="text-[11px] text-muted-foreground mb-0.5">Max file size</p>
               <p className="text-[13px] font-semibold text-foreground">50 MB</p>
             </div>
             {tool.acceptMultiple && (
-              <div className="bg-card border border-[#E5E5E3] rounded-lg p-3">
-                <p className="text-[11px] text-[#A1A19D] mb-0.5">Max files</p>
+              <div className="bg-card border border-border rounded-lg p-3">
+                <p className="text-[11px] text-muted-foreground mb-0.5">Max files</p>
                 <p className="text-[13px] font-semibold text-foreground">{tool.maxFiles ?? 20}</p>
               </div>
             )}
-            <div className="bg-card border border-[#E5E5E3] rounded-lg p-3">
-              <p className="text-[11px] text-[#A1A19D] mb-0.5">Accepted types</p>
+            <div className="bg-card border border-border rounded-lg p-3">
+              <p className="text-[11px] text-muted-foreground mb-0.5">Accepted types</p>
               <p className="text-[13px] font-semibold text-foreground">
                 {tool.acceptedTypes.map((t) => t.toUpperCase().replace(".", "")).join(", ")}
               </p>
