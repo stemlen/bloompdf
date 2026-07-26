@@ -1,0 +1,268 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
+
+:root {
+  /* ── BloomPDF Core Palette ────────────────────────────── */
+  --bloom-50:  #FFF0F3;
+  --bloom-100: #FFE0E8;
+  --bloom-200: #FFC5D3;
+  --bloom-300: #FF9BB3;
+  --bloom-400: #FF6B8E;
+  --bloom-500: #E8607A;   /* primary brand */
+  --bloom-600: #D94D6A;   /* hover/active  */
+  --bloom-700: #B83A57;
+  --bloom-800: #8F2D43;
+  --bloom-900: #6B1F32;
+
+  /* Core palette */
+  --background: #F8F7F7;
+  --foreground: #111111;
+  --card: #FFFFFF;
+  --card-foreground: #111111;
+  --popover: #FFFFFF;
+  --popover-foreground: #111111;
+  --primary: #E8607A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F3F3F1;
+  --secondary-foreground: #111111;
+  --muted: #F3F3F1;
+  --muted-foreground: #737373;
+  --accent: #FFF0F3;
+  --accent-foreground: #B83A57;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #E4E4E2;
+  --input: #E4E4E2;
+  --ring: #E8607A;
+  --radius: 0.625rem;
+
+  /* Sidebar */
+  --sidebar-background: #FFFFFF;
+  --sidebar-foreground: #111111;
+  --sidebar-primary: #E8607A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #FFF0F3;
+  --sidebar-accent-foreground: #B83A57;
+  --sidebar-border: #E4E4E2;
+  --sidebar-ring: #E8607A;
+
+  /* Typography */
+  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.04);
+  --shadow-card: 0 2px 8px -2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 8px 24px -4px rgba(232,96,122,0.10), 0 0 0 1px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px -4px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 12px 32px -8px rgba(0,0,0,0.14), 0 4px 8px -4px rgba(0,0,0,0.06);
+}
+
+.dark {
+  /* Core palette - Dark */
+  --background: #0F1115;
+  --foreground: #F5F5F5;
+  --card: #171A21;
+  --card-foreground: #F5F5F5;
+  --popover: #1E222B;
+  --popover-foreground: #F5F5F5;
+  --primary: #E8607A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1E222B;
+  --secondary-foreground: #F5F5F5;
+  --muted: #1E222B;
+  --muted-foreground: #A1A1AA;
+  --accent: #1E222B;
+  --accent-foreground: #F5F5F5;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #2D333B;
+  --input: #2D333B;
+  --ring: #E8607A;
+
+  /* Sidebar - Dark */
+  --sidebar-background: #171A21;
+  --sidebar-foreground: #F5F5F5;
+  --sidebar-primary: #E8607A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1E222B;
+  --sidebar-accent-foreground: #F5F5F5;
+  --sidebar-border: #2D333B;
+  --sidebar-ring: #E8607A;
+
+  /* Shadows - Dark adjustments */
+  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.5);
+  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.6), 0 1px 2px -1px rgba(0,0,0,0.5);
+  --shadow-card: 0 2px 8px -2px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
+  --shadow-card-hover: 0 8px 24px -4px rgba(0,0,0,0.9), 0 0 0 1px rgba(232,96,122,0.5);
+  --shadow-md: 0 4px 16px -4px rgba(0,0,0,0.8), 0 2px 4px -2px rgba(0,0,0,0.6);
+  --shadow-lg: 0 12px 32px -8px rgba(0,0,0,0.9), 0 4px 8px -4px rgba(0,0,0,0.7);
+}
+
+/* Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter);
+  line-height: 1.5;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* ── Scrollbars ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CFCFCC;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #E8607A;
+}
+
+/* ── Focus ──────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 5px;
+}
+
+/* ── Selection ──────────────────────────────────────────── */
+::selection {
+  background: rgba(232, 96, 122, 0.12);
+  color: inherit;
+}
+
+/* ── Base transitions ───────────────────────────────────── */
+* {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+.no-transition * {
+  transition: none !important;
+}
+
+/* ── Tool Card ──────────────────────────────────────────── */
+.tool-card {
+  will-change: transform, box-shadow;
+}
+.tool-card:hover {
+  transform: translateY(-2px);
+}
+.tool-card:active {
+  transform: translateY(0px);
+  transition-duration: 80ms;
+}
+
+/* ── Card icon bloom on hover ───────────────────────────── */
+.tool-card:hover .card-icon-container {
+  transform: scale(1.06);
+  transition-duration: 200ms;
+}
+
+/* ── Drop zone ──────────────────────────────────────────── */
+.dropzone-active {
+  border-color: var(--primary) !important;
+  background-color: rgba(232, 96, 122, 0.04) !important;
+}
+
+/* ── Sidebar transition ─────────────────────────────────── */
+.sidebar-transition {
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Horizontal scroll strip (no scrollbar visible) ─────── */
+.scroll-strip {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Category color utilities ───────────────────────────── */
+.cat-organize    { --cat: #2563EB; --cat-light: #EFF6FF; --cat-mid: #DBEAFE; }
+.cat-optimize    { --cat: #0D9488; --cat-light: #F0FDFA; --cat-mid: #CCFBF1; }
+.cat-convert-to  { --cat: #16A34A; --cat-light: #F0FDF4; --cat-mid: #DCFCE7; }
+.cat-convert-from{ --cat: #EA580C; --cat-light: #FFF7ED; --cat-mid: #FED7AA; }
+.cat-edit        { --cat: #7C3AED; --cat-light: #F5F3FF; --cat-mid: #EDE9FE; }
+.cat-forms       { --cat: #4F46E5; --cat-light: #EEF2FF; --cat-mid: #E0E7FF; }
+
+/* ── BloomPDF brand utilities ───────────────────────────── */
+.bloom-primary    { color: #E8607A; }
+.bloom-bg-light   { background-color: #FFF0F3; }
+.bloom-border     { border-color: #FFC5D3; }
+.bloom-ring       { box-shadow: 0 0 0 3px rgba(232,96,122,0.15); }
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+@keyframes bloomPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.04); opacity: 0.9; }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.22s ease-out both;
+}
+.animate-fade-in {
+  animation: fadeIn 0.18s ease-out both;
+}
+.animate-scale-in {
+  animation: scaleIn 0.18s ease-out both;
+}
+.animate-slide-up {
+  animation: fadeUp 0.20s ease-out both;
+}
+.animate-bloom-pulse {
+  animation: bloomPulse 2.4s ease-in-out infinite;
+}
+
+/* ── Custom duration utility ─────────────────────────────── */
+.duration-250 {
+  transition-duration: 250ms;
+}
+
+/* ── Staggered children ─────────────────────────────────── */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 40ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 200ms; }
