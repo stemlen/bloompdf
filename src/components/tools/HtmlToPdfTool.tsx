@@ -211,7 +211,7 @@ export function HtmlToPdfTool() {
         )}
 
         {/* Preview Area */}
-        <div className="flex-1 flex flex-col bg-[#FAFAFA] relative overflow-hidden">
+        <div className="flex-1 flex flex-col bg-muted/40 relative overflow-hidden">
           {previewImage ? (
             <div className="absolute inset-0 flex items-start justify-center p-8 overflow-y-auto custom-scrollbar bg-[#F3F3F2]">
               <div className="bg-card rounded-lg shadow-xl overflow-hidden border border-border max-w-full">
@@ -244,7 +244,7 @@ export function HtmlToPdfTool() {
 
       {/* ── Right Panel (Settings) ───────────────────────────────────────────── */}
       <div className="w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA] flex items-center gap-2">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40 flex items-center gap-2">
           <Settings className="w-4 h-4 text-[#2563EB]" />
           <h3 className="text-[14px] font-bold text-foreground">Conversion Settings</h3>
         </div>
@@ -257,28 +257,28 @@ export function HtmlToPdfTool() {
             <div className="grid grid-cols-2 gap-2">
               <button 
                 onClick={() => setScreenSize("desktop")} 
-                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "desktop" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "desktop" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-muted/40")}
               >
                 <Monitor className="w-6 h-6" />
                 <span className="text-[12px] font-bold">Desktop</span>
               </button>
               <button 
                 onClick={() => setScreenSize("laptop")} 
-                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "laptop" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "laptop" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-muted/40")}
               >
                 <Laptop className="w-6 h-6" />
                 <span className="text-[12px] font-bold">Laptop</span>
               </button>
               <button 
                 onClick={() => setScreenSize("tablet")} 
-                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "tablet" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "tablet" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-muted/40")}
               >
                 <Tablet className="w-6 h-6" />
                 <span className="text-[12px] font-bold">Tablet</span>
               </button>
               <button 
                 onClick={() => setScreenSize("mobile")} 
-                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "mobile" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all", screenSize === "mobile" ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#2563EB]/50 hover:bg-muted/40")}
               >
                 <Smartphone className="w-6 h-6" />
                 <span className="text-[12px] font-bold">Mobile</span>
@@ -390,7 +390,7 @@ export function HtmlToPdfTool() {
         </div>
         
         {/* Action Footer */}
-        <div className="p-5 bg-[#FAFAFA] border-t border-border flex-shrink-0">
+        <div className="p-5 bg-muted/40 border-t border-border flex-shrink-0">
           <button
             onClick={handleConvert}
             disabled={converting || !inputValue.trim()}

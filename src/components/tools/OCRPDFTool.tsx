@@ -72,7 +72,7 @@ function ConfidenceBadge({ value }: { value: number }) {
   const color =
     value >= 80 ? "text-[#10B981] bg-[#ECFDF5] border-[#10B981]/20"
     : value >= 60 ? "text-[#F59E0B] bg-[#FFFBEB] border-[#F59E0B]/20"
-    : "text-[#E8607A] bg-[#FFF0F3] border-[#E8607A]/20";
+    : "text-[#E8607A] bg-primary/10 border-[#E8607A]/20";
 
   const label =
     value >= 80 ? "High" : value >= 60 ? "Medium" : "Low";
@@ -118,7 +118,7 @@ function LanguageSelector({
           "w-full h-11 flex items-center gap-2.5 px-3.5 bg-card border rounded-xl text-[13px] font-bold text-foreground transition-all",
           disabled
             ? "opacity-50 cursor-not-allowed border-border"
-            : "border-border hover:border-[#E8607A]/50 hover:bg-[#FAFAFA] cursor-pointer"
+            : "border-border hover:border-[#E8607A]/50 hover:bg-muted/40 cursor-pointer"
         )}
       >
         <span className="text-[18px]">{selected.flag}</span>
@@ -136,7 +136,7 @@ function LanguageSelector({
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 text-[13px] text-left transition-colors",
                 lang.value === value
-                  ? "bg-[#FFF0F3] text-[#E8607A] font-bold"
+                  ? "bg-primary/10 text-[#E8607A] font-bold"
                   : "text-foreground hover:bg-[#F8F8F7] font-medium"
               )}
             >
@@ -176,7 +176,7 @@ function EnhancementToggle({
       className={cn(
         "flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all w-full",
         checked
-          ? "border-[#E8607A] bg-[#FFF0F3] shadow-sm"
+          ? "border-[#E8607A] bg-primary/10 shadow-sm"
           : "border-border bg-card hover:border-[#E8607A]/40",
         disabled && "opacity-50 cursor-not-allowed"
       )}
@@ -410,7 +410,7 @@ export function OCRPDFTool() {
 
       {/* ── Left Panel: Sidebar ────────────────────────────────────────────── */}
       <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">OCR PDF</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Extract text from scanned documents</p>
         </div>
@@ -418,7 +418,7 @@ export function OCRPDFTool() {
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
           {!pdfInfo ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-12 h-12 rounded-xl bg-[#FFF0F3] flex items-center justify-center mb-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
                  <ScanText className="w-5 h-5 text-[#E8607A]" />
               </div>
               <p className="text-[13px] font-bold text-foreground">No file selected</p>
@@ -429,7 +429,7 @@ export function OCRPDFTool() {
               {/* File Info */}
               <div className="flex items-center justify-between p-3 bg-[#F8F8F7] border border-[#E5E5E3] rounded-xl shadow-sm">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 bg-[#FFF0F3] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     <FileText className="w-4 h-4 text-[#E8607A]" />
                   </div>
                   <div className="min-w-0">
@@ -444,7 +444,7 @@ export function OCRPDFTool() {
                 <button
                   onClick={handleRemoveFile}
                   disabled={isProcessing}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-[#FFF0F3] transition-colors disabled:opacity-50 flex-shrink-0"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-primary/10 transition-colors disabled:opacity-50 flex-shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -467,7 +467,7 @@ export function OCRPDFTool() {
                          <FileText className="w-4 h-4 text-[#A1A19D]" /> Pages
                        </div>
                        {selectedPages.length > 0 && (
-                         <span className="text-[10px] font-bold text-[#E8607A] bg-[#FFF0F3] px-2 py-0.5 rounded-full">
+                         <span className="text-[10px] font-bold text-[#E8607A] bg-primary/10 px-2 py-0.5 rounded-full">
                            {selectedPages.length} selected
                          </span>
                        )}
@@ -568,7 +568,7 @@ export function OCRPDFTool() {
                            className={cn(
                              "w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all",
                              outputMode === opt.value
-                               ? "border-[#E8607A] bg-[#FFF0F3] shadow-sm"
+                               ? "border-[#E8607A] bg-primary/10 shadow-sm"
                                : "border-border bg-card hover:border-[#E8607A]/40",
                              (isProcessing || toolState === "done") && "opacity-60 cursor-not-allowed"
                            )}
@@ -713,7 +713,7 @@ export function OCRPDFTool() {
                              </select>
                           </div>
                        </div>
-                       <div className="p-6 bg-[#FAFAFA] min-h-[300px]">
+                       <div className="p-6 bg-muted/40 min-h-[300px]">
                           <textarea
                             readOnly
                             value={ocrResult.pages[previewPage]?.text || "No text detected."}
@@ -735,7 +735,7 @@ export function OCRPDFTool() {
                     </div>
                  </div>
                  
-                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-[#FAFAFA]">
+                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-muted/40">
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                       {thumbnails.map((thumb) => {
                         const pageNum = thumb.index + 1;
@@ -807,7 +807,7 @@ export function OCRPDFTool() {
         <div className="bg-card border-t border-border h-[80px] px-6 flex items-center justify-between flex-shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)] z-30 relative">
           
           {errorMessage && toolState === "error" && (
-            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-[#FFF0F3] rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
+            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
               <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
               <p className="text-[12px] font-semibold text-foreground leading-tight">
                 {errorMessage}

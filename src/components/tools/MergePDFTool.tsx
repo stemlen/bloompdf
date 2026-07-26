@@ -298,7 +298,7 @@ export function MergePDFTool() {
       {/* ── Left Panel: Sidebar ────────────────────────────────────────────── */}
       <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Files to Merge</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">
             {files.length} {files.length === 1 ? "file" : "files"} • {totalPages} pages total
@@ -317,7 +317,7 @@ export function MergePDFTool() {
               className={cn(
                 "flex items-center gap-3 bg-card border rounded-xl p-2.5 group transition-all cursor-grab active:cursor-grabbing select-none hover:shadow-sm",
                 f.pageCount === null
-                  ? "border-[#E8607A]/40 bg-[#FFF0F3]"
+                  ? "border-[#E8607A]/40 bg-primary/10"
                   : "border-border hover:border-[#111111]/20"
               )}
             >
@@ -353,7 +353,7 @@ export function MergePDFTool() {
               {/* Remove button */}
               <button
                 onClick={() => removeFile(f.id)}
-                className="w-7 h-7 rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-[#FFF0F3] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 border border-transparent hover:border-[#FFC5D3]"
+                className="w-7 h-7 rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 border border-transparent hover:border-[#FFC5D3]"
                 aria-label={`Remove ${f.name}`}
               >
                 <X className="w-3.5 h-3.5" />
@@ -365,7 +365,7 @@ export function MergePDFTool() {
           {canAddMore && (
             <button
               onClick={() => inputRef.current?.click()}
-              className="w-full h-11 flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl text-[12px] font-bold text-muted-foreground hover:border-[#E8607A] hover:text-[#E8607A] hover:bg-[#FFF0F3] transition-all mt-4"
+              className="w-full h-11 flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl text-[12px] font-bold text-muted-foreground hover:border-[#E8607A] hover:text-[#E8607A] hover:bg-primary/10 transition-all mt-4"
             >
               <Plus className="w-4 h-4" />
               Add More PDFs
@@ -479,7 +479,7 @@ export function MergePDFTool() {
                        onClick={() => inputRef.current?.click()}
                        className="w-[140px] sm:w-[160px] aspect-[1/1.4] border-2 border-dashed border-[#D1D1CE] rounded-xl flex flex-col items-center justify-center text-[#A1A19D] hover:border-[#E8607A] hover:text-[#E8607A] hover:bg-card transition-all cursor-pointer group"
                      >
-                        <div className="w-10 h-10 rounded-full bg-muted group-hover:bg-[#FFF0F3] flex items-center justify-center mb-2 transition-colors">
+                        <div className="w-10 h-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center mb-2 transition-colors">
                            <Plus className="w-5 h-5" />
                         </div>
                         <span className="text-[12px] font-bold">Add PDF</span>
@@ -495,7 +495,7 @@ export function MergePDFTool() {
           
           {/* Status & Errors (Absolute positioned above the bar if needed, or inline) */}
           {errorMessage && mergeState === "error" && (
-            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-[#FFF0F3] rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
+            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
               <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
               <p className="text-[12px] font-semibold text-foreground leading-tight">
                 {errorMessage}

@@ -129,7 +129,7 @@ export function TextToPdfTool() {
         
         {/* Editor Area */}
         <div className="flex-1 flex flex-col bg-card">
-          <div className="flex items-center justify-between border-b border-[#E5E5E3] px-6 py-4 bg-[#FAFAFA]">
+          <div className="flex items-center justify-between border-b border-[#E5E5E3] px-6 py-4 bg-muted/40">
             <div className="flex bg-[#E5E5E3] p-1 rounded-lg">
               <button 
                 onClick={() => setActiveTab("write")}
@@ -189,7 +189,7 @@ export function TextToPdfTool() {
                 className="absolute inset-0 w-full h-full p-6 lg:p-8 resize-none outline-none text-[15px] leading-relaxed text-foreground bg-card custom-scrollbar"
               />
             ) : (
-              <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-[#FAFAFA] p-6 lg:p-8">
+              <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-muted/40 p-6 lg:p-8">
                 {text.trim() ? (
                   <div 
                     className="max-w-4xl mx-auto bg-card shadow-sm border border-border rounded-lg min-h-[800px]"
@@ -208,7 +208,7 @@ export function TextToPdfTool() {
           </div>
           
           {/* Status Bar */}
-          <div className="border-t border-[#E5E5E3] bg-[#FAFAFA] px-6 py-2.5 flex items-center justify-between text-[12px] font-medium text-muted-foreground">
+          <div className="border-t border-[#E5E5E3] bg-muted/40 px-6 py-2.5 flex items-center justify-between text-[12px] font-medium text-muted-foreground">
             <div className="flex items-center gap-4">
               <span>{stats.words.toLocaleString()} words</span>
               <span>{stats.chars.toLocaleString()} characters</span>
@@ -223,7 +223,7 @@ export function TextToPdfTool() {
 
       {/* ── Right Panel (Settings) ───────────────────────────────────────────── */}
       <div className="w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA] flex items-center gap-2">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40 flex items-center gap-2">
           <Settings className="w-4 h-4 text-[#E8607A]" />
           <h3 className="text-[14px] font-bold text-foreground">PDF Settings</h3>
         </div>
@@ -320,7 +320,7 @@ export function TextToPdfTool() {
         </div>
         
         {/* Action Footer */}
-        <div className="p-5 bg-[#FAFAFA] border-t border-border flex-shrink-0">
+        <div className="p-5 bg-muted/40 border-t border-border flex-shrink-0">
           <button
             onClick={handleConvert}
             disabled={converting || !text.trim()}

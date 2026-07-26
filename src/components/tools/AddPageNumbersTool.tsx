@@ -277,7 +277,7 @@ export function AddPageNumbersTool() {
   };
 
   const CheckboxItem = ({ checked, onChange, label, desc, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string; disabled?: boolean }) => (
-    <label className={cn("flex items-start gap-2.5 p-2 rounded-xl border transition-colors group", checked ? "bg-[#FFF0F3] border-[#E8607A]" : "bg-card border-border", disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[#E8607A]/50")}>
+    <label className={cn("flex items-start gap-2.5 p-2 rounded-xl border transition-colors group", checked ? "bg-primary/10 border-[#E8607A]" : "bg-card border-border", disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[#E8607A]/50")}>
       <div className={cn("mt-0.5 w-4 h-4 rounded-[4px] border flex items-center justify-center flex-shrink-0 transition-colors", checked && !disabled ? "bg-[#E8607A] border-[#E8607A]" : "border-[#D1D1CE] bg-card")}>
         {checked && <CheckSquare className="w-3 h-3 text-white" />}
         <input type="checkbox" className="hidden" checked={checked} onChange={(e) => !disabled && onChange(e.target.checked)} />
@@ -299,7 +299,7 @@ export function AddPageNumbersTool() {
 
       {/* Left Panel */}
       <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Add Page Numbers</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Insert numbers into your PDF pages</p>
         </div>
@@ -307,7 +307,7 @@ export function AddPageNumbersTool() {
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {!pdfInfo ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center h-full">
-              <div className="w-12 h-12 rounded-xl bg-[#FFF0F3] flex items-center justify-center mb-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
                  <Hash className="w-5 h-5 text-[#E8607A]" />
               </div>
               <p className="text-[13px] font-bold text-foreground">No file selected</p>
@@ -319,7 +319,7 @@ export function AddPageNumbersTool() {
               {/* File Info */}
               <div className="flex items-center justify-between p-3 bg-[#F8F8F7] border border-[#E5E5E3] rounded-xl shadow-sm">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 bg-[#FFF0F3] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Hash className="w-4 h-4 text-[#E8607A]" />
                   </div>
                   <div className="min-w-0">
@@ -329,7 +329,7 @@ export function AddPageNumbersTool() {
                     </p>
                   </div>
                 </div>
-                <button onClick={handleReset} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-[#FFF0F3] transition-colors disabled:opacity-50 flex-shrink-0">
+                <button onClick={handleReset} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-primary/10 transition-colors disabled:opacity-50 flex-shrink-0">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -470,7 +470,7 @@ export function AddPageNumbersTool() {
               </div>
             </div>
           ) : (
-             <div className="flex-1 w-full bg-[#FAFAFA] rounded-3xl border border-border shadow-sm overflow-hidden flex flex-col">
+             <div className="flex-1 w-full bg-muted/40 rounded-3xl border border-border shadow-sm overflow-hidden flex flex-col">
                 <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between sticky top-0 z-20">
                    <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2">
                       <FileText className="w-4 h-4 text-[#A1A19D]" /> Live Preview
@@ -528,7 +528,7 @@ export function AddPageNumbersTool() {
         {/* Action Bar */}
         <div className="bg-card border-t border-border h-[80px] px-6 flex items-center justify-between flex-shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)] z-30 relative">
           {errorMessage && toolState === "error" && (
-            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-[#FFF0F3] rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up">
+            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up">
               <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
               <p className="text-[12px] font-semibold text-foreground leading-tight max-w-sm">{errorMessage}</p>
               <button onClick={() => { setErrorMessage(null); setToolState(pdfInfo ? "ready" : "idle"); }} className="p-1 hover:bg-[#FFC5D3] rounded-lg text-[#E8607A]"><X className="w-4 h-4" /></button>

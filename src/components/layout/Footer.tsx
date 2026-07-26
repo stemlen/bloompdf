@@ -50,12 +50,20 @@ export function Footer() {
             <h4 className="text-[14px] font-bold text-foreground mb-4">Features</h4>
             <ul className="space-y-3">
               {[
-                "Merge PDF", "Split PDF", "Compress PDF", "Organize PDF", 
-                "OCR PDF", "Word to PDF", "Excel to PDF", "PowerPoint to PDF"
+                { name: "Merge PDF", slug: "merge-pdf" },
+                { name: "Split PDF", slug: "split-pdf" },
+                { name: "Compress PDF", slug: "compress-pdf" },
+                { name: "Organize PDF", slug: "organize-pdf" },
+                { name: "OCR PDF", slug: "ocr-pdf" },
+                { name: "Word to PDF", slug: "word-to-pdf" },
+                { name: "Excel to PDF", slug: "excel-to-pdf" },
+                { name: "PowerPoint to PDF", slug: "powerpoint-to-pdf" },
+                { name: "Edit PDF", slug: "edit-pdf" },
+                { name: "Protect PDF", slug: "protect-pdf" },
               ].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
-                    {item}
+                <li key={item.slug}>
+                  <Link href={`/tools/${item.slug}`} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                    {item.name}
                   </Link>
                 </li>
               ))}
@@ -67,22 +75,31 @@ export function Footer() {
             <div>
               <h4 className="text-[14px] font-bold text-foreground mb-4">Support</h4>
               <ul className="space-y-3">
-                {["Help Center", "FAQs", "Contact Support", "Report a Bug"].map((item) => (
-                  <li key={item}>
-                    <Link href="#" className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
-                      {item}
+                {[
+                  { label: "Help Center", href: "/#faq" },
+                  { label: "FAQs", href: "/#faq" },
+                  { label: "All Tools", href: "/" },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                      {item.label}
                     </Link>
                   </li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="text-[14px] font-bold text-foreground mb-4">Contact</h4>
+              <h4 className="text-[14px] font-bold text-foreground mb-4">Categories</h4>
               <ul className="space-y-3">
-                {["Email", "Business Inquiries", "Partnership Requests"].map((item) => (
-                  <li key={item}>
-                    <Link href="#" className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
-                      {item}
+                {[
+                  { label: "Organize PDF", href: "/#organize" },
+                  { label: "Optimize PDF", href: "/#optimize" },
+                  { label: "Convert to PDF", href: "/#convert-to" },
+                  { label: "Convert from PDF", href: "/#convert-from" },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                      {item.label}
                     </Link>
                   </li>
                 ))}
@@ -94,37 +111,49 @@ export function Footer() {
           <div className="col-span-1">
             <h4 className="text-[14px] font-bold text-foreground mb-4">About</h4>
             <ul className="space-y-3">
-              {["About BloomPDF", "Our Mission", "Careers", "Blog"].map((item) => (
-                <li key={item}>
-                  <Link href="#" className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
-                    {item}
+              {[
+                { label: "About BloomPDF", href: "/" },
+                { label: "Favorites", href: "/#favorites" },
+                { label: "Recent Tools", href: "/#recent" },
+              ].map((item) => (
+                <li key={item.label}>
+                  <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                    {item.label}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Policies & Legal Column */}
+          {/* Security & Features Column */}
           <div className="col-span-1 flex flex-col gap-8">
             <div>
-              <h4 className="text-[14px] font-bold text-foreground mb-4">Policies</h4>
+              <h4 className="text-[14px] font-bold text-foreground mb-4">Security</h4>
               <ul className="space-y-3">
-                {["Privacy Policy", "Cookie Policy", "Security Policy", "Data Protection"].map((item) => (
-                  <li key={item}>
-                    <Link href="#" className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
-                      {item}
+                {[
+                  { label: "Protect PDF", href: "/tools/protect-pdf" },
+                  { label: "Unlock PDF", href: "/tools/unlock-pdf" },
+                  { label: "PDF Forms", href: "/tools/pdf-forms" },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                      {item.label}
                     </Link>
                   </li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="text-[14px] font-bold text-foreground mb-4">Legal</h4>
+              <h4 className="text-[14px] font-bold text-foreground mb-4">Conversion</h4>
               <ul className="space-y-3">
-                {["Terms & Conditions", "Terms of Service", "Disclaimer"].map((item) => (
-                  <li key={item}>
-                    <Link href="#" className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
-                      {item}
+                {[
+                  { label: "JPG to PDF", href: "/tools/jpg-to-pdf" },
+                  { label: "PDF to JPG", href: "/tools/pdf-to-jpg" },
+                  { label: "HTML to PDF", href: "/tools/html-to-pdf" },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                      {item.label}
                     </Link>
                   </li>
                 ))}

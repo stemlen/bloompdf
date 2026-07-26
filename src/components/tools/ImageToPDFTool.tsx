@@ -246,7 +246,7 @@ export function ImageToPDFTool() {
               className={cn(
                 "relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-all select-none mb-6",
                 hasImages ? "py-8" : "py-20",
-                "border-[#D1D1CE] bg-card hover:border-[#E8607A] hover:bg-[#FFF0F3]"
+                "border-[#D1D1CE] bg-card hover:border-[#E8607A] hover:bg-primary/10"
               )}
             >
               <div className="flex flex-col items-center gap-2 pointer-events-none">
@@ -328,7 +328,7 @@ export function ImageToPDFTool() {
 
       {/* ── Right Panel (Settings & Action Bar) ────────────────────────────── */}
       <div className="w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Settings</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Configure PDF output</p>
         </div>
@@ -351,7 +351,7 @@ export function ImageToPDFTool() {
                       className={cn(
                         "w-full px-4 py-3 rounded-xl border text-left transition-all flex items-center justify-between",
                         orientation === o.value
-                          ? "border-[#E8607A] bg-[#FFF0F3]"
+                          ? "border-[#E8607A] bg-primary/10"
                           : "border-[#E5E5E3] bg-card hover:border-[#A1A19D]",
                         convertState === "converting" && "opacity-60 cursor-not-allowed"
                       )}
@@ -382,7 +382,7 @@ export function ImageToPDFTool() {
                       className={cn(
                         "px-3 py-2.5 rounded-lg border text-[13px] font-semibold transition-all",
                         margin === m.value
-                          ? "border-[#E8607A] bg-[#FFF0F3] text-[#E8607A]"
+                          ? "border-[#E8607A] bg-primary/10 text-[#E8607A]"
                           : "border-[#E5E5E3] bg-card text-[#6B7280] hover:border-[#A1A19D] hover:text-foreground",
                         convertState === "converting" && "opacity-60 cursor-not-allowed"
                       )}
@@ -403,10 +403,10 @@ export function ImageToPDFTool() {
         </div>
 
         {/* Action bar / Sticky Footer */}
-        <div className="p-5 border-t border-border bg-[#FAFAFA] flex-shrink-0 space-y-4">
+        <div className="p-5 border-t border-border bg-muted/40 flex-shrink-0 space-y-4">
           {/* Error state */}
           {convertState === "error" && errorMessage && (
-            <div className="flex items-start gap-3 p-3 bg-[#FFF0F3] rounded-lg border border-[#E8607A]/20 animate-slide-up">
+            <div className="flex items-start gap-3 p-3 bg-primary/10 rounded-lg border border-[#E8607A]/20 animate-slide-up">
               <AlertCircle className="w-4 h-4 text-[#E8607A] flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold text-foreground">Error</p>

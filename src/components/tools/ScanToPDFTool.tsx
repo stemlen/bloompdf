@@ -437,7 +437,7 @@ export function ScanToPDFTool() {
           onDragOver={handleDragOver}
           onClick={() => inputRef.current?.click()}
           role="button" tabIndex={0}
-          className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#D1D1CE] bg-[#FAFAFA] hover:border-[#2563EB] hover:bg-[#EFF6FF] transition-all select-none py-16 cursor-pointer"
+          className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#D1D1CE] bg-muted/40 hover:border-[#2563EB] hover:bg-[#EFF6FF] transition-all select-none py-16 cursor-pointer"
         >
           <input ref={inputRef} type="file" multiple accept="image/*" onChange={handleInputChange} className="hidden" />
           
@@ -485,7 +485,7 @@ export function ScanToPDFTool() {
                   </DndContext>
                 </div>
 
-                <div className="p-3 border-t border-[#E5E5E3] bg-[#FAFAFA]">
+                <div className="p-3 border-t border-[#E5E5E3] bg-muted/40">
                    <button
                      onClick={() => inputRef.current?.click()}
                      className="w-full h-9 flex items-center justify-center gap-2 rounded-lg border border-[#E5E5E3] bg-card text-foreground text-[12px] font-semibold hover:border-[#2563EB] hover:text-[#2563EB] transition-colors shadow-sm"
@@ -588,7 +588,7 @@ export function ScanToPDFTool() {
                            "py-1.5 px-2 rounded border text-[11px] font-semibold transition-colors",
                            activePage?.filter === f.id
                              ? "bg-[#2563EB] text-white border-[#2563EB]"
-                             : "bg-[#FAFAFA] text-[#6B7280] border-[#E5E5E3] hover:border-[#A1A19D]"
+                             : "bg-muted/40 text-[#6B7280] border-[#E5E5E3] hover:border-[#A1A19D]"
                          )}
                        >
                          {f.label}
@@ -603,7 +603,7 @@ export function ScanToPDFTool() {
                    </label>
                    <button
                      onClick={rotateActive}
-                     className="w-full h-9 flex items-center justify-center gap-2 rounded-lg border border-[#E5E5E3] bg-[#FAFAFA] text-foreground text-[12px] font-semibold hover:border-[#2563EB] hover:text-[#2563EB] transition-colors"
+                     className="w-full h-9 flex items-center justify-center gap-2 rounded-lg border border-[#E5E5E3] bg-muted/40 text-foreground text-[12px] font-semibold hover:border-[#2563EB] hover:text-[#2563EB] transition-colors"
                    >
                      <RotateCw className="w-4 h-4" /> Rotate 90°
                    </button>

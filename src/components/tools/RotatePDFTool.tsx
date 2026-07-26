@@ -310,7 +310,7 @@ export function RotatePDFTool() {
 
       {/* ── Left Panel: Sidebar ────────────────────────────────────────────── */}
       <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Rotate PDF</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Rotate pages exactly as you want</p>
         </div>
@@ -558,7 +558,7 @@ export function RotatePDFTool() {
                         {isInteractive && hasRotation && (
                            <button
                              onClick={(e) => { e.stopPropagation(); resetPageRotation(thumb.index); }}
-                             className="absolute bottom-2 right-2 w-8 h-8 bg-card/90 backdrop-blur border border-border rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#FFF0F3] hover:border-[#E8607A] hover:text-[#E8607A] shadow-sm"
+                             className="absolute bottom-2 right-2 w-8 h-8 bg-card/90 backdrop-blur border border-border rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/10 hover:border-[#E8607A] hover:text-[#E8607A] shadow-sm"
                              title="Reset rotation"
                            >
                              <RotateCcw className="w-4 h-4" />
@@ -611,7 +611,7 @@ export function RotatePDFTool() {
         <div className="bg-card border-t border-border h-[80px] px-6 flex items-center justify-between flex-shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)] z-30 relative">
           
           {errorMessage && toolState === "error" && (
-            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-[#FFF0F3] rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
+            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
               <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
               <p className="text-[12px] font-semibold text-foreground leading-tight">
                 {errorMessage}

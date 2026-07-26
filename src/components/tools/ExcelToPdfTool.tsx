@@ -286,7 +286,7 @@ export function ExcelToPdfTool() {
 
       {/* ── Right Panel (Settings) ───────────────────────────────────────────── */}
       <div className="w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA] flex items-center gap-2">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40 flex items-center gap-2">
           <Settings className="w-4 h-4 text-[#10B981]" />
           <h3 className="text-[14px] font-bold text-foreground">Conversion Settings</h3>
         </div>
@@ -352,7 +352,7 @@ export function ExcelToPdfTool() {
 
             {/* Sheet Checklist */}
             {conversionMode === "selected" && availableSheets.length > 0 && (
-              <div className="mt-3 bg-[#FAFAFA] border border-[#E5E5E3] rounded-xl overflow-hidden animate-slide-up">
+              <div className="mt-3 bg-muted/40 border border-[#E5E5E3] rounded-xl overflow-hidden animate-slide-up">
                 <div className="max-h-[200px] overflow-y-auto p-2 custom-scrollbar space-y-1">
                   {availableSheets.map(sheet => (
                     <label key={sheet} className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-card transition-colors group">
@@ -391,7 +391,7 @@ export function ExcelToPdfTool() {
         </div>
         
         {/* Action Footer */}
-        <div className="p-5 bg-[#FAFAFA] border-t border-border flex-shrink-0">
+        <div className="p-5 bg-muted/40 border-t border-border flex-shrink-0">
           <button
             onClick={handleDownload}
             disabled={loading || !pdfBlob}

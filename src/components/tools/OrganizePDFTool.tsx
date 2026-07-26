@@ -358,7 +358,7 @@ export function OrganizePDFTool() {
       {/* ── Left Panel: Sidebar ────────────────────────────────────────────── */}
       <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Organize PDF</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Reorder, delete, or rotate pages</p>
         </div>
@@ -433,7 +433,7 @@ export function OrganizePDFTool() {
                       <button
                          onClick={deleteSelected}
                          disabled={selectedCount === 0 || toolState !== "ready"}
-                         className="col-span-2 flex items-center justify-center gap-2 p-3 rounded-xl border border-border bg-card text-muted-foreground hover:bg-[#FFF0F3] hover:text-[#E8607A] hover:border-[#E8607A]/50 transition-all disabled:opacity-40"
+                         className="col-span-2 flex items-center justify-center gap-2 p-3 rounded-xl border border-border bg-card text-muted-foreground hover:bg-primary/10 hover:text-[#E8607A] hover:border-[#E8607A]/50 transition-all disabled:opacity-40"
                       >
                          <Trash2 className="w-4 h-4" />
                          <span className="text-[12px] font-bold">Delete Pages</span>
@@ -613,7 +613,7 @@ export function OrganizePDFTool() {
                             </button>
                              <button
                               onClick={(e) => { e.stopPropagation(); deletePage(page.id); }}
-                              className="w-7 h-7 bg-card/90 backdrop-blur shadow-sm border border-border rounded-md flex items-center justify-center text-muted-foreground hover:text-[#E8607A] hover:border-[#E8607A]/50 hover:bg-[#FFF0F3]"
+                              className="w-7 h-7 bg-card/90 backdrop-blur shadow-sm border border-border rounded-md flex items-center justify-center text-muted-foreground hover:text-[#E8607A] hover:border-[#E8607A]/50 hover:bg-primary/10"
                               title="Delete"
                               aria-label="Delete Page"
                             >
@@ -673,7 +673,7 @@ export function OrganizePDFTool() {
         <div className="bg-card border-t border-border h-[80px] px-6 flex items-center justify-between flex-shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)] z-30 relative">
           
           {errorMessage && toolState === "error" && (
-            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-[#FFF0F3] rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
+            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
               <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
               <p className="text-[12px] font-semibold text-foreground leading-tight">
                 {errorMessage}

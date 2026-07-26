@@ -98,7 +98,7 @@ function HealthScoreRing({ score }: { score: number }) {
 
 function IssueBadge({ issue }: { issue: PDFIssue }) {
   const styles = {
-    critical: "bg-[#FFF0F3] text-[#E8607A] border-[#FECDD3]",
+    critical: "bg-primary/10 text-[#E8607A] border-[#FECDD3]",
     warning:  "bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A]",
     info:     "bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE]",
   };
@@ -143,7 +143,7 @@ function OptionToggle({
       onClick={() => onChange(!checked)}
       className={cn(
         "flex items-start gap-3 p-3 rounded-xl border text-left transition-all w-full",
-        checked ? "border-[#E8607A]/40 bg-[#FFF0F3]" : "border-[#E5E5E3] bg-card hover:border-[#E8607A]/30",
+        checked ? "border-[#E8607A]/40 bg-primary/10" : "border-[#E5E5E3] bg-card hover:border-[#E8607A]/30",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
@@ -331,7 +331,7 @@ export function RepairPDFTool() {
 
       {/* ── Left Panel: Sidebar ────────────────────────────────────────────── */}
       <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Repair PDF</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Fix corrupted or damaged files</p>
         </div>
@@ -339,7 +339,7 @@ export function RepairPDFTool() {
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
           {!file ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-12 h-12 rounded-xl bg-[#FFF0F3] flex items-center justify-center mb-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
                  <Wrench className="w-5 h-5 text-[#E8607A]" />
               </div>
               <p className="text-[13px] font-bold text-foreground">No file selected</p>
@@ -350,7 +350,7 @@ export function RepairPDFTool() {
               {/* File Info */}
               <div className="flex items-center justify-between p-3 bg-[#F8F8F7] border border-[#E5E5E3] rounded-xl shadow-sm">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 bg-[#FFF0F3] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     <FileText className="w-4 h-4 text-[#E8607A]" />
                   </div>
                   <div className="min-w-0">
@@ -369,7 +369,7 @@ export function RepairPDFTool() {
                 <button
                   onClick={handleReset}
                   disabled={isProcessing}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-[#FFF0F3] transition-colors disabled:opacity-50 flex-shrink-0"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-primary/10 transition-colors disabled:opacity-50 flex-shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -406,7 +406,7 @@ export function RepairPDFTool() {
                              className={cn(
                                "w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all",
                                options.mode === opt.value
-                                 ? "border-[#E8607A] bg-[#FFF0F3] shadow-sm"
+                                 ? "border-[#E8607A] bg-primary/10 shadow-sm"
                                  : "border-[#E5E5E3] bg-card hover:border-[#E8607A]/40",
                                (isProcessing || toolState === "done") && "opacity-60 cursor-not-allowed"
                              )}
@@ -543,7 +543,7 @@ export function RepairPDFTool() {
                              "px-4 py-2 rounded-xl border",
                              analysis.recoveryProbability === "High" ? "bg-[#ECFDF5] border-[#10B981]/30" 
                              : analysis.recoveryProbability === "Medium" ? "bg-[#FFFBEB] border-[#F59E0B]/30"
-                             : "bg-[#FFF0F3] border-[#E8607A]/30"
+                             : "bg-primary/10 border-[#E8607A]/30"
                           )}>
                              <p className={cn(
                                "text-[11px] font-bold uppercase tracking-wider mb-0.5",
@@ -575,7 +575,7 @@ export function RepairPDFTool() {
                      <div key={label} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
                        <div className={cn(
                          "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm",
-                         ok ? "bg-[#ECFDF5] text-[#10B981]" : neutralFalse ? "bg-[#FFFBEB] text-[#F59E0B]" : "bg-[#FFF0F3] text-[#E8607A]"
+                         ok ? "bg-[#ECFDF5] text-[#10B981]" : neutralFalse ? "bg-[#FFFBEB] text-[#F59E0B]" : "bg-primary/10 text-[#E8607A]"
                        )}>
                          {ok
                            ? <CheckCircle2 className="w-5 h-5" />
@@ -679,7 +679,7 @@ export function RepairPDFTool() {
         <div className="bg-card border-t border-border h-[80px] px-6 flex items-center justify-between flex-shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)] z-30 relative">
           
           {errorMessage && toolState === "error" && (
-            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-[#FFF0F3] rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
+            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
               <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
               <p className="text-[12px] font-semibold text-foreground leading-tight">
                 {errorMessage}

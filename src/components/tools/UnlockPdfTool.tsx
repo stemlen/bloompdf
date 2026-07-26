@@ -121,7 +121,7 @@ export function UnlockPdfTool() {
             className="w-full max-w-2xl bg-card border-2 border-dashed border-[#E5E5E3] rounded-3xl p-12 flex flex-col items-center text-center cursor-pointer hover:border-[#E8607A] transition-colors"
             onClick={() => fileInputRef.current?.click()}
           >
-            <div className="w-20 h-20 bg-[#FFF0F3] rounded-2xl flex items-center justify-center mb-6">
+            <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
               <Upload className="w-10 h-10 text-[#E8607A]" />
             </div>
             <h3 className="text-[22px] font-bold text-foreground mb-2">Upload Protected PDF</h3>
@@ -160,7 +160,7 @@ export function UnlockPdfTool() {
 
       {/* ── Right Panel (Settings) ───────────────────────────────────────────── */}
       <div className="w-full md:w-[320px] lg:w-[380px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
-        <div className="px-6 py-5 border-b border-border bg-[#FAFAFA] flex items-center gap-3">
+        <div className="px-6 py-5 border-b border-border bg-muted/40 flex items-center gap-3">
           <Unlock className="w-5 h-5 text-[#E8607A]" />
           <h3 className="text-[15px] font-bold text-foreground">Unlock Settings</h3>
         </div>
@@ -216,7 +216,7 @@ export function UnlockPdfTool() {
         </div>
         
         {/* Action Footer */}
-        <div className="p-6 bg-[#FAFAFA] border-t border-border flex-shrink-0">
+        <div className="p-6 bg-muted/40 border-t border-border flex-shrink-0">
           <button
             onClick={handleUnlock}
             disabled={unlocking || !file || !password}

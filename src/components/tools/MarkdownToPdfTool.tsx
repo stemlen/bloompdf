@@ -107,7 +107,7 @@ export function MarkdownToPdfTool() {
         
         {/* Editor Area */}
         <div className="flex-1 flex flex-col bg-card">
-          <div className="flex items-center justify-between border-b border-[#E5E5E3] px-6 py-4 bg-[#FAFAFA]">
+          <div className="flex items-center justify-between border-b border-[#E5E5E3] px-6 py-4 bg-muted/40">
             <div className="flex bg-[#E5E5E3] p-1 rounded-lg">
               <button 
                 onClick={() => setActiveTab("write")}
@@ -167,7 +167,7 @@ export function MarkdownToPdfTool() {
                 className="absolute inset-0 w-full h-full p-6 lg:p-8 resize-none outline-none text-[14px] font-mono leading-relaxed text-foreground bg-card custom-scrollbar"
               />
             ) : (
-              <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-[#FAFAFA] p-6 lg:p-8">
+              <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-muted/40 p-6 lg:p-8">
                 {markdown.trim() ? (
                   <div 
                     className="prose prose-sm max-w-4xl mx-auto bg-card p-8 lg:p-12 shadow-sm border border-border rounded-lg"
@@ -187,7 +187,7 @@ export function MarkdownToPdfTool() {
 
       {/* ── Right Panel (Settings) ───────────────────────────────────────────── */}
       <div className="w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA] flex items-center gap-2">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40 flex items-center gap-2">
           <Settings className="w-4 h-4 text-[#E8607A]" />
           <h3 className="text-[14px] font-bold text-foreground">Conversion Settings</h3>
         </div>
@@ -200,28 +200,28 @@ export function MarkdownToPdfTool() {
             <div className="grid grid-cols-2 gap-2">
               <button 
                 onClick={() => setTheme("default")} 
-                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "default" ? "bg-[#FFF0F3] border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "default" ? "bg-primary/10 border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-muted/40")}
               >
                 <span className="text-[13px] font-bold mb-1 text-inherit">Default</span>
                 <span className="text-[11px] opacity-70">Clean & simple</span>
               </button>
               <button 
                 onClick={() => setTheme("professional")} 
-                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "professional" ? "bg-[#FFF0F3] border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "professional" ? "bg-primary/10 border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-muted/40")}
               >
                 <span className="text-[13px] font-bold mb-1 text-inherit font-serif">Professional</span>
                 <span className="text-[11px] opacity-70">Formal reports</span>
               </button>
               <button 
                 onClick={() => setTheme("modern")} 
-                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "modern" ? "bg-[#FFF0F3] border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "modern" ? "bg-primary/10 border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-muted/40")}
               >
                 <span className="text-[13px] font-bold mb-1 text-inherit tracking-tight">Modern</span>
                 <span className="text-[11px] opacity-70">Sleek & vibrant</span>
               </button>
               <button 
                 onClick={() => setTheme("minimal")} 
-                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "minimal" ? "bg-[#FFF0F3] border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-[#FAFAFA]")}
+                className={cn("flex flex-col items-center justify-center p-4 border rounded-xl transition-all", theme === "minimal" ? "bg-primary/10 border-[#E8607A] text-[#E8607A]" : "bg-card border-[#E5E5E3] text-muted-foreground hover:border-[#E8607A]/50 hover:bg-muted/40")}
               >
                 <span className="text-[13px] font-bold mb-1 text-inherit font-light">Minimal</span>
                 <span className="text-[11px] opacity-70">Pure focus</span>
@@ -246,7 +246,7 @@ export function MarkdownToPdfTool() {
         </div>
         
         {/* Action Footer */}
-        <div className="p-5 bg-[#FAFAFA] border-t border-border flex-shrink-0">
+        <div className="p-5 bg-muted/40 border-t border-border flex-shrink-0">
           <button
             onClick={handleConvert}
             disabled={converting || !markdown.trim()}
