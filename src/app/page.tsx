@@ -123,7 +123,7 @@ export default function HomePage() {
           }}
         />
 
-        <div className="relative max-w-screen-xl mx-auto px-4 sm:px-6 pt-16 pb-14">
+        <div className="relative max-w-screen-xl mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-14">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             
             {/* Left side: text and badges */}

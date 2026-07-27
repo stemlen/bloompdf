@@ -151,7 +151,7 @@ export default async function ToolPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full max-w-7xl mx-auto px-1 sm:px-4 py-2 sm:py-8">
         <ClientToolWrapper tool={tool} />
         <ToolSeoContent toolName={tool.name} seoData={seoData} />
       </div>

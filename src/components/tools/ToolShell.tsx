@@ -146,9 +146,9 @@ export function ToolShell({ tool }: ToolShellProps) {
 
   if (tool.layoutType === "workspace") {
     return (
-      <div className="flex flex-col h-[calc(100vh-58px)] bg-muted overflow-hidden">
+      <div className="flex flex-col h-[calc(100vh-85px)] sm:h-[calc(100vh-140px)] min-h-[500px] sm:min-h-[600px] bg-card border border-border rounded-lg sm:rounded-2xl overflow-hidden shadow-xs">
         {/* Compact Workspace Header */}
-        <div className="h-14 bg-card border-b border-border flex items-center px-4 sm:px-6 justify-between flex-shrink-0 z-10 shadow-xs">
+        <div className="h-14 bg-muted/30 border-b border-border flex items-center px-4 sm:px-6 justify-between flex-shrink-0 z-10">
           <div className="flex items-center gap-3">
              <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
                 <ToolIcon slug={tool.slug} size={36} />

@@ -122,7 +122,7 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <TopNav />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 pt-[58px]">{children}</main>
           <Footer />
         </ThemeProvider>
       </body>

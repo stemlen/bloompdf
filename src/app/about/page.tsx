@@ -36,7 +36,7 @@ export default function AboutPage() {
       {/* ═════════════════════════════════════════════════════════════════════
           1. HERO SECTION (Apple HIG Corporate Aesthetic)
       ═════════════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-card via-card/70 to-muted/40 border-b border-border pt-16 pb-20 sm:pt-24 sm:pb-28">
+      <section className="relative overflow-hidden bg-gradient-to-b from-card via-card/70 to-muted/40 border-b border-border pt-8 pb-20 sm:pt-14 sm:pb-28">
         {/* Subtle Ambient Radial Glows & Grid Pattern */}
         <div
           className="absolute inset-0 pointer-events-none opacity-20"

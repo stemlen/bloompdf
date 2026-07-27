@@ -83,12 +83,12 @@ const allPdfCategories: MegaCategory[] = [
     lightBg: "#EFF6FF",
     icon: LayoutGrid,
     tools: [
-      { slug: "merge-pdf",      name: "Merge PDF",       icon: Combine,     description: "Combine multiple PDFs" },
-      { slug: "split-pdf",      name: "Split PDF",        icon: Scissors,    description: "Divide into separate files" },
-      { slug: "remove-pages",   name: "Remove Pages",     icon: FileMinus,   description: "Delete specific pages" },
-      { slug: "extract-pages",  name: "Extract Pages",    icon: FileOutput,  description: "Pull pages into a new PDF" },
-      { slug: "organize-pdf",   name: "Organize PDF",     icon: LayoutGrid,  description: "Reorder and rotate pages" },
-      { slug: "scan-to-pdf",    name: "Scan to PDF",      icon: Scan,        description: "Images to PDF" },
+      { slug: "merge-pdf", name: "Merge PDF", icon: Combine, description: "Combine multiple PDFs" },
+      { slug: "split-pdf", name: "Split PDF", icon: Scissors, description: "Divide into separate files" },
+      { slug: "remove-pages", name: "Remove Pages", icon: FileMinus, description: "Delete specific pages" },
+      { slug: "extract-pages", name: "Extract Pages", icon: FileOutput, description: "Pull pages into a new PDF" },
+      { slug: "organize-pdf", name: "Organize PDF", icon: LayoutGrid, description: "Reorder and rotate pages" },
+      { slug: "scan-to-pdf", name: "Scan to PDF", icon: Scan, description: "Images to PDF" },
     ],
   },
   {
@@ -99,8 +99,8 @@ const allPdfCategories: MegaCategory[] = [
     icon: Minimize2,
     tools: [
       { slug: "compress-pdf", name: "Compress PDF", icon: Minimize2, description: "Reduce file size" },
-      { slug: "repair-pdf",   name: "Repair PDF",   icon: Wrench,    description: "Fix damaged files" },
-      { slug: "ocr-pdf",      name: "OCR PDF",      icon: ScanText,  description: "Recognize text in scans" },
+      { slug: "repair-pdf", name: "Repair PDF", icon: Wrench, description: "Fix damaged files" },
+      { slug: "ocr-pdf", name: "OCR PDF", icon: ScanText, description: "Recognize text in scans" },
     ],
   },
   {
@@ -110,13 +110,13 @@ const allPdfCategories: MegaCategory[] = [
     lightBg: "#F0FDF4",
     icon: ImageIcon,
     tools: [
-      { slug: "jpg-to-pdf",       name: "JPG to PDF",       icon: ImageIcon,       description: "Images to PDF" },
-      { slug: "word-to-pdf",      name: "Word to PDF",      icon: FileText,        description: "DOCX to PDF" },
-      { slug: "excel-to-pdf",     name: "Excel to PDF",     icon: FileSpreadsheet, description: "XLSX to PDF" },
-      { slug: "powerpoint-to-pdf",name: "PowerPoint to PDF",icon: Presentation,   description: "PPTX to PDF" },
-      { slug: "html-to-pdf",      name: "HTML to PDF",      icon: Globe,           description: "Webpages to PDF" },
-      { slug: "markdown-to-pdf",  name: "Markdown to PDF",  icon: FileEdit,        description: "MD to PDF" },
-      { slug: "text-to-pdf",      name: "Text to PDF",      icon: FileText,        description: "TXT to PDF" },
+      { slug: "jpg-to-pdf", name: "JPG to PDF", icon: ImageIcon, description: "Images to PDF" },
+      { slug: "word-to-pdf", name: "Word to PDF", icon: FileText, description: "DOCX to PDF" },
+      { slug: "excel-to-pdf", name: "Excel to PDF", icon: FileSpreadsheet, description: "XLSX to PDF" },
+      { slug: "powerpoint-to-pdf", name: "PowerPoint to PDF", icon: Presentation, description: "PPTX to PDF" },
+      { slug: "html-to-pdf", name: "HTML to PDF", icon: Globe, description: "Webpages to PDF" },
+      { slug: "markdown-to-pdf", name: "Markdown to PDF", icon: FileEdit, description: "MD to PDF" },
+      { slug: "text-to-pdf", name: "Text to PDF", icon: FileText, description: "TXT to PDF" },
     ],
   },
   {
@@ -126,10 +126,10 @@ const allPdfCategories: MegaCategory[] = [
     lightBg: "#FFF7ED",
     icon: ArrowRight,
     tools: [
-      { slug: "pdf-to-jpg",        name: "PDF to JPG",        icon: FileImage,       description: "Extract images" },
-      { slug: "pdf-to-word",       name: "PDF to Word",       icon: FileText,        description: "Editable .DOCX" },
-      { slug: "pdf-to-powerpoint", name: "PDF to PowerPoint", icon: Presentation,    description: "Editable .PPTX" },
-      { slug: "pdf-to-excel",      name: "PDF to Excel",      icon: FileSpreadsheet, description: "Tables to .XLSX" },
+      { slug: "pdf-to-jpg", name: "PDF to JPG", icon: FileImage, description: "Extract images" },
+      { slug: "pdf-to-word", name: "PDF to Word", icon: FileText, description: "Editable .DOCX" },
+      { slug: "pdf-to-powerpoint", name: "PDF to PowerPoint", icon: Presentation, description: "Editable .PPTX" },
+      { slug: "pdf-to-excel", name: "PDF to Excel", icon: FileSpreadsheet, description: "Tables to .XLSX" },
     ],
   },
   {
@@ -139,11 +139,11 @@ const allPdfCategories: MegaCategory[] = [
     lightBg: "#F5F3FF",
     icon: PenLine,
     tools: [
-      { slug: "edit-pdf",         name: "Edit PDF",         icon: PenLine,   description: "Add text, shapes & annotations" },
-      { slug: "rotate-pdf",       name: "Rotate PDF",       icon: RotateCw,  description: "Rotate page orientation" },
-      { slug: "add-page-numbers", name: "Page Numbers",     icon: Hash,      description: "Insert page numbers" },
-      { slug: "add-watermark",    name: "Add Watermark",    icon: Droplets,  description: "Text or image watermark" },
-      { slug: "crop-pdf",         name: "Crop PDF",         icon: Crop,      description: "Trim page margins" },
+      { slug: "edit-pdf", name: "Edit PDF", icon: PenLine, description: "Add text, shapes & annotations" },
+      { slug: "rotate-pdf", name: "Rotate PDF", icon: RotateCw, description: "Rotate page orientation" },
+      { slug: "add-page-numbers", name: "Page Numbers", icon: Hash, description: "Insert page numbers" },
+      { slug: "add-watermark", name: "Add Watermark", icon: Droplets, description: "Text or image watermark" },
+      { slug: "crop-pdf", name: "Crop PDF", icon: Crop, description: "Trim page margins" },
     ],
   },
   {
@@ -154,8 +154,8 @@ const allPdfCategories: MegaCategory[] = [
     icon: Shield,
     tools: [
       { slug: "protect-pdf", name: "Protect PDF", icon: Shield, description: "Add password protection" },
-      { slug: "unlock-pdf",  name: "Unlock PDF",  icon: Shield, description: "Remove password" },
-      { slug: "pdf-forms",   name: "PDF Forms",   icon: ClipboardList, description: "Fill out forms" },
+      { slug: "unlock-pdf", name: "Unlock PDF", icon: Shield, description: "Remove password" },
+      { slug: "pdf-forms", name: "PDF Forms", icon: ClipboardList, description: "Fill out forms" },
     ],
   },
   {
@@ -283,8 +283,8 @@ export function TopNav() {
   // ─── Nav items ────────────────────────────────────────────────────────
 
   const navItems = [
-    { id: "all-tools",   label: "All PDF Tools" },
-    { id: "convert-pdf", label: "Convert PDF"   },
+    { id: "all-tools", label: "All PDF Tools" },
+    { id: "convert-pdf", label: "Convert PDF" },
   ];
 
   return (
@@ -293,13 +293,13 @@ export function TopNav() {
         ref={navRef}
         className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border shadow-xs"
       >
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-6">
+        <div className="max-w-screen-xl mx-auto px-1 sm:px-4 md:px-6">
           <div className="flex items-center h-[58px] gap-2">
 
             {/* ── Logo ──────────────────────────────────────────── */}
             <Link
               href="/"
-              className="flex items-center flex-shrink-0 mr-8 overflow-visible"
+              className="flex items-center flex-shrink-0 -ml-2 sm:-ml-1 mr-3 sm:mr-6 overflow-visible"
               aria-label="BloomPDF home"
             >
               <Image

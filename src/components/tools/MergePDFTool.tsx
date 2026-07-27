@@ -296,7 +296,7 @@ export function MergePDFTool() {
       />
 
       {/* ── Left Panel: Sidebar ────────────────────────────────────────────── */}
-      <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
+      <div className={cn("w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] md:h-full", hasFiles ? "h-[35vh]" : "hidden md:flex")}>
         {/* Header */}
         <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Files to Merge</h2>

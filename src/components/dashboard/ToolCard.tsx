@@ -121,17 +121,18 @@ export function ToolCard({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+        <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
           <span
-            className="text-[10.5px] font-bold px-2 py-0.5 rounded-md tracking-wide"
+            className="text-[10px] sm:text-[10.5px] font-bold px-2 py-0.5 rounded-md tracking-wide truncate min-w-0 max-w-[65%]"
             style={{
               ...getCategoryBgStyle(category),
               color: category?.color,
             }}
+            title={category?.label}
           >
             {category?.label}
           </span>
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground group-hover:text-muted-foreground transition-colors">
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
             <span>{tool.outputFormat}</span>
             <ArrowRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
           </span>
