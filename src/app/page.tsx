@@ -505,19 +505,6 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── Footer strip ───────────────────────────────────────── */}
-          <div className="mt-16 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <NextImage src="/BloomPDF.png" alt="BloomPDF" width={260} height={70} className="h-18 sm:h-20 w-auto object-contain scale-150 origin-left" />
-              <span className="text-[12px] text-muted-foreground">— A Product by Stemlen</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[12px] text-muted-foreground">
-                All {allTools.length} tools free · No sign-up · Powered by Stemlen
-              </span>
-            </div>
-          </div>
         </div>
     </div>
   );

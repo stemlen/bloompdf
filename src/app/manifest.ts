@@ -4,9 +4,9 @@ export const dynamic = "force-static";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "BloomPDF — Professional PDF Editor & Tools",
+    name: "BloomPDF — 100% Free & Open Source PDF Editor",
     short_name: "BloomPDF",
-    description: "100% Free and Private Online PDF Editor and Document Tools.",
+    description: "100% Free, Private & Open Source Online PDF Editor and Document Tools.",
     start_url: "/",
     display: "standalone",
     background_color: "#0f172a",

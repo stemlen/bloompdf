@@ -22,9 +22,9 @@ export interface ToolSeoData {
 }
 
 export const defaultCompetitorComparison = {
-  bloompdf: "100% In-Browser Execution. Files never leave your device. Unlimited file sizes, 0 wait times, completely free with no paywalls or watermarks.",
-  ilovepdf: "Server-side processing requires uploading your confidential files. Has strict file size limits and daily task quotas on free accounts.",
-  adobeAcrobat: "Expensive monthly subscriptions ($19.99/mo). Requires account registration, software installation, or uploading files to Adobe servers.",
+  bloompdf: "100% Free & Open Source on GitHub. In-browser execution ensures files never leave your device. Unlimited file sizes, 0 wait times, no paywalls or watermarks.",
+  ilovepdf: "Closed-source, server-side processing requiring uploads of confidential files. Strict file size limits and daily task quotas on free tier.",
+  adobeAcrobat: "Proprietary software with expensive monthly subscriptions ($19.99/mo). Requires account registration or cloud uploads.",
 };
 
 export const seoDataMap: Record<string, ToolSeoData> = {
@@ -418,14 +418,17 @@ export function getToolSeoData(slug: string, fallbackName: string, fallbackDesc:
   const formattedName = fallbackName || slug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   
   return {
-    seoTitle: `${formattedName} Online Free — Fast & Private | BloomPDF`,
-    metaDescription: `${fallbackDesc || `Use ${formattedName} online with BloomPDF.`} 100% private in-browser processing with no server uploads. Free alternative to iLovePDF and Adobe Acrobat.`,
+    seoTitle: `${formattedName} Online Free — 100% Open Source & Private | BloomPDF`,
+    metaDescription: `${fallbackDesc || `Use ${formattedName} online with BloomPDF.`} 100% free & open source in-browser PDF processing with zero server uploads. The open-source alternative to iLovePDF and Adobe Acrobat.`,
     keywords: [
+      "open source PDF tool",
+      "open source PDF editor",
       `${slug.replace(/-/g, " ")}`,
       `${formattedName} free`,
+      `${formattedName} open source`,
       `${formattedName} online`,
-      "BloomPDF tool",
-      "free PDF tools",
+      "BloomPDF open source tool",
+      "free open source PDF tools",
     ],
     howToSteps: [
       {
@@ -443,16 +446,16 @@ export function getToolSeoData(slug: string, fallbackName: string, fallbackDesc:
     ],
     faqs: [
       {
-        question: `Is ${formattedName} on BloomPDF completely free?`,
-        answer: `Yes, ${formattedName} is 100% free with unlimited file usage, no registration, and no watermarks.`,
+        question: `Is ${formattedName} on BloomPDF completely free and open source?`,
+        answer: `Yes! ${formattedName} on BloomPDF is 100% free and open source with unlimited file usage, no registration, no watermarks, and open source transparency on GitHub.`,
       },
       {
         question: `How does BloomPDF ensure my files stay private when using ${formattedName}?`,
-        answer: `BloomPDF executes all PDF processing directly inside your device's web browser using TypeScript and WebAssembly. Your files are never uploaded to any remote servers.`,
+        answer: `BloomPDF executes all PDF processing directly inside your device's web browser using open-source TypeScript and WebAssembly engines. Your files are never uploaded to any remote servers.`,
       },
       {
         question: `How does BloomPDF compare to iLovePDF and Adobe Acrobat for ${formattedName}?`,
-        answer: `BloomPDF provides zero-upload privacy, no file size caps, and instant speed without requiring paid subscriptions or software installation.`,
+        answer: `BloomPDF is 100% open source, provides zero-upload privacy, no file size caps, and instant speed without requiring paid subscriptions or software installation.`,
       },
     ],
     competitorComparison: defaultCompetitorComparison,

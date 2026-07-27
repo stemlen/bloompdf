@@ -71,6 +71,14 @@ export const ToolSeoContent: React.FC<Props> = ({ toolName, seoData }) => {
             </thead>
             <tbody className="divide-y divide-border/60">
               <tr>
+                <td className="p-4 font-medium text-foreground">Source Code Transparency</td>
+                <td className="p-4 bg-primary/5 font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-500" /> 100% Open Source (GitHub)
+                </td>
+                <td className="p-4 text-muted-foreground">Closed Source (Proprietary)</td>
+                <td className="p-4 text-muted-foreground">Closed Source (Proprietary)</td>
+              </tr>
+              <tr>
                 <td className="p-4 font-medium text-foreground">File Privacy</td>
                 <td className="p-4 bg-primary/5 font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-500" /> 100% Client-Side (No Uploads)
