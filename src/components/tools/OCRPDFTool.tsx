@@ -19,12 +19,18 @@ import {
   ScanText,
   Languages,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
   FileDown,
   Zap,
   Shield,
   BarChart3,
   Wand2,
+  Search,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
 import { validatePDFFile } from "@/lib/splitPdf";
@@ -197,6 +203,306 @@ function EnhancementToggle({
         <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{description}</p>
       </div>
     </button>
+  );
+}
+
+// ─── Searchable PDF Viewer & Highlight Overlay ────────────────────────────────
+
+interface SearchHit {
+  id: string;
+  globalIndex: number;
+  pageIndex: number;
+  wordIndex: number;
+  text: string;
+  bbox: { x0: number; y0: number; x1: number; y1: number };
+}
+
+function PageOverlay({
+  page,
+  pageIndex,
+  hits,
+  activeMatchIndex,
+}: {
+  page: OCRPageResult;
+  pageIndex: number;
+  hits: SearchHit[];
+  activeMatchIndex: number;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeHitRef = useRef<HTMLDivElement>(null);
+  const [dim, setDim] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      setDim({ width: rect.width, height: rect.height });
+    };
+
+    updateSize();
+    const ro = new ResizeObserver(() => updateSize());
+    ro.observe(el);
+
+    return () => ro.disconnect();
+  }, []);
+
+  const pageHits = useMemo(() => hits.filter((h) => h.pageIndex === pageIndex), [hits, pageIndex]);
+
+  useEffect(() => {
+    const activeHit = hits[activeMatchIndex];
+    if (activeHit && activeHit.pageIndex === pageIndex && activeHitRef.current) {
+      activeHitRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [activeMatchIndex, hits, pageIndex]);
+
+  const scaleX = dim.width > 0 && page.width > 0 ? dim.width / page.width : 1;
+  const scaleY = dim.height > 0 && page.height > 0 ? dim.height / page.height : 1;
+
+  return (
+    <div ref={containerRef} className="relative w-full shadow-md rounded-xl overflow-hidden bg-white border border-border">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={page.imageDataUrl}
+        alt={`Page ${page.pageNumber}`}
+        draggable={false}
+        className="w-full h-auto block select-none"
+      />
+
+      {dim.width > 0 &&
+        dim.height > 0 &&
+        pageHits.map((hit) => {
+          const isActive = hit.globalIndex === activeMatchIndex;
+          const left = hit.bbox.x0 * scaleX;
+          const top = hit.bbox.y0 * scaleY;
+          const width = (hit.bbox.x1 - hit.bbox.x0) * scaleX;
+          const height = (hit.bbox.y1 - hit.bbox.y0) * scaleY;
+
+          return (
+            <div
+              key={hit.id}
+              ref={isActive ? activeHitRef : undefined}
+              className={cn(
+                "absolute pointer-events-none rounded-[2px] transition-all duration-200",
+                isActive
+                  ? "bg-[#E8607A]/85 border-2 border-[#E8607A] ring-4 ring-[#E8607A]/30 z-20 shadow-lg animate-pulse"
+                  : "bg-yellow-300/60 border border-yellow-500/60 z-10"
+              )}
+              style={{
+                left: `${left}px`,
+                top: `${top}px`,
+                width: `${Math.max(3, width)}px`,
+                height: `${Math.max(3, height)}px`,
+              }}
+            />
+          );
+        })}
+    </div>
+  );
+}
+
+function SearchablePDFViewer({ ocrResult }: { ocrResult: OCRResult }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const [zoom, setZoom] = useState(100);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const searchHits = useMemo<SearchHit[]>(() => {
+    if (!ocrResult || !searchQuery.trim()) return [];
+    const q = searchQuery.trim().toLowerCase();
+    const qWords = q.split(/\s+/).filter(Boolean);
+    const hits: SearchHit[] = [];
+    let globalIndex = 0;
+
+    ocrResult.pages.forEach((page, pageIndex) => {
+      const words = page.words || [];
+      if (qWords.length === 1) {
+        const singleQ = qWords[0];
+        words.forEach((word, wordIndex) => {
+          const wordTextLower = word.text.toLowerCase();
+          if (!wordTextLower.includes(singleQ)) return;
+
+          let bbox = { ...word.bbox };
+          if (wordTextLower !== singleQ && wordTextLower.length > 0) {
+            const startIdx = wordTextLower.indexOf(singleQ);
+            const endIdx = startIdx + singleQ.length;
+            const wordW = word.bbox.x1 - word.bbox.x0;
+            const subX0 = word.bbox.x0 + wordW * (startIdx / wordTextLower.length);
+            const subX1 = word.bbox.x0 + wordW * (endIdx / wordTextLower.length);
+            bbox = { x0: subX0, y0: word.bbox.y0, x1: subX1, y1: word.bbox.y1 };
+          }
+
+          hits.push({
+            id: `hit-${pageIndex}-${wordIndex}-${globalIndex}`,
+            globalIndex: globalIndex++,
+            pageIndex,
+            wordIndex,
+            text: word.text,
+            bbox,
+          });
+        });
+      } else {
+        for (let i = 0; i <= words.length - qWords.length; i++) {
+          let match = true;
+          for (let j = 0; j < qWords.length; j++) {
+            if (!words[i + j].text.toLowerCase().includes(qWords[j])) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            for (let j = 0; j < qWords.length; j++) {
+              const word = words[i + j];
+              hits.push({
+                id: `hit-${pageIndex}-${i + j}-${globalIndex}`,
+                globalIndex: globalIndex++,
+                pageIndex,
+                wordIndex: i + j,
+                text: word.text,
+                bbox: { ...word.bbox },
+              });
+            }
+          }
+        }
+      }
+    });
+
+    return hits;
+  }, [ocrResult, searchQuery]);
+
+  useEffect(() => {
+    setActiveMatchIndex(0);
+  }, [searchQuery]);
+
+  const handleNext = () => {
+    if (searchHits.length === 0) return;
+    setActiveMatchIndex((prev) => (prev + 1) % searchHits.length);
+  };
+
+  const handlePrev = () => {
+    if (searchHits.length === 0) return;
+    setActiveMatchIndex((prev) => (prev - 1 + searchHits.length) % searchHits.length);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.shiftKey) handlePrev();
+      else handleNext();
+    }
+  };
+
+  return (
+    <div className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden flex flex-col w-full">
+      {/* Search Toolbar */}
+      <div className="p-4 border-b border-border bg-[#F8F8F7] flex flex-wrap items-center justify-between gap-3 sticky top-0 z-30">
+        {/* Search Input Box */}
+        <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-md">
+          <div className="relative flex-1 flex items-center">
+            <Search className="w-4 h-4 text-[#A1A19D] absolute left-3 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Search words in searchable PDF..."
+              className="w-full h-9 pl-9 pr-8 bg-card border border-border rounded-xl text-[13px] font-medium focus:outline-none focus:border-[#E8607A] focus:ring-2 focus:ring-[#E8607A]/20"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 text-[#A1A19D] hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Match Counter & Prev/Next */}
+          {searchQuery.trim().length > 0 && (
+            <div className="flex items-center gap-1 bg-card border border-border rounded-xl px-2.5 py-1 flex-shrink-0">
+              <span className={cn(
+                "text-[12px] font-bold px-1",
+                searchHits.length > 0 ? "text-[#E8607A]" : "text-muted-foreground"
+              )}>
+                {searchHits.length > 0 ? `${activeMatchIndex + 1} of ${searchHits.length}` : "0 matches"}
+              </span>
+              <div className="h-3 w-[1px] bg-border mx-0.5" />
+              <button
+                onClick={handlePrev}
+                disabled={searchHits.length === 0}
+                title="Previous match (Shift+Enter)"
+                className="p-1 rounded hover:bg-muted text-foreground disabled:opacity-30"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={searchHits.length === 0}
+                title="Next match (Enter)"
+                className="p-1 rounded hover:bg-muted text-foreground disabled:opacity-30"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-card border border-border rounded-xl p-1 gap-1">
+            <button
+              onClick={() => setZoom((z) => Math.max(50, z - 25))}
+              disabled={zoom <= 50}
+              className="p-1.5 hover:bg-muted rounded-lg text-foreground disabled:opacity-40"
+              title="Zoom out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[12px] font-bold w-12 text-center text-foreground">{zoom}%</span>
+            <button
+              onClick={() => setZoom((z) => Math.min(250, z + 25))}
+              disabled={zoom >= 250}
+              className="p-1.5 hover:bg-muted rounded-lg text-foreground disabled:opacity-40"
+              title="Zoom in"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {zoom !== 100 && (
+            <button
+              onClick={() => setZoom(100)}
+              className="h-9 px-3 bg-card border border-border rounded-xl text-[12px] font-bold text-muted-foreground hover:text-foreground flex items-center gap-1"
+              title="Reset Zoom"
+            >
+              <Maximize2 className="w-3.5 h-3.5" /> Reset
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Pages List */}
+      <div className="p-6 bg-muted/40 overflow-y-auto max-h-[650px] custom-scrollbar flex flex-col items-center gap-8">
+        {ocrResult.pages.map((page, idx) => (
+          <div key={page.pageNumber} className="flex flex-col items-center transition-all duration-300" style={{ width: `${zoom}%`, maxWidth: "100%" }}>
+            <div className="w-full flex items-center justify-between mb-2 px-1">
+              <span className="text-[12px] font-bold text-muted-foreground">Page {page.pageNumber} of {ocrResult.pages.length}</span>
+              {page.confidence > 0 && (
+                <span className="text-[11px] font-semibold text-[#A1A19D]">{page.confidence}% confidence</span>
+              )}
+            </div>
+            <PageOverlay
+              page={page}
+              pageIndex={idx}
+              hits={searchHits}
+              activeMatchIndex={activeMatchIndex}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -692,9 +998,11 @@ export function OCRPDFTool() {
                     </div>
                     <ConfidenceBadge value={ocrResult.averageConfidence} />
                  </div>
-
-                 {/* Results Preview (Only if text was extracted) */}
-                 {ocrResult.outputMode === "extract-text" && (
+                 
+                 {/* Results Preview: Searchable PDF Viewer or Text Extractor */}
+                 {ocrResult.outputMode === "searchable-pdf" ? (
+                    <SearchablePDFViewer ocrResult={ocrResult} />
+                 ) : (
                     <div className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden flex flex-col">
                        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-[#F8F8F7]">
                           <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2">

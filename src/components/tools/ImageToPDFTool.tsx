@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Upload, X, GripVertical, Download, Loader2,
   CheckCircle2, AlertCircle, RefreshCw, Image as ImageIcon,
-  Settings2, LayoutTemplate,
+  Settings2, LayoutTemplate, Maximize2,
 } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
 import {
@@ -16,6 +16,7 @@ import {
   MAX_IMAGE_COUNT,
   type PageOrientation,
   type PageMarginSize,
+  type FitMode,
   type ImageToPDFOptions,
 } from "@/lib/imageToPdf";
 
@@ -45,8 +46,14 @@ function makeImageFile(file: File): ImageFile {
 
 // ─── Option controls ───────────────────────────────────────────────────────
 
+const FIT_MODES: { value: FitMode; label: string; sub: string }[] = [
+  { value: "fit", label: "Fit to Page (default)", sub: "Maintains margins & centers image" },
+  { value: "fill", label: "Fill Page", sub: "Fills page preserving aspect ratio" },
+  { value: "original", label: "Original Size", sub: "1:1 size without scaling up" },
+];
+
 const ORIENTATIONS: { value: PageOrientation; label: string; sub: string }[] = [
-  { value: "auto", label: "Auto", sub: "Page fits image" },
+  { value: "auto", label: "Auto Orientation", sub: "A4 Portrait/Landscape per image" },
   { value: "portrait", label: "Portrait A4", sub: "595 × 842 pt" },
   { value: "landscape", label: "Landscape A4", sub: "842 × 595 pt" },
 ];
@@ -68,7 +75,8 @@ export function ImageToPDFTool() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultBytes, setResultBytes] = useState<Uint8Array | null>(null);
   const [orientation, setOrientation] = useState<PageOrientation>("auto");
-  const [margin, setMargin] = useState<PageMarginSize>("none");
+  const [margin, setMargin] = useState<PageMarginSize>("medium");
+  const [fitMode, setFitMode] = useState<FitMode>("fit");
 
   // Drag-to-reorder
   const dragIndexRef = useRef<number | null>(null);
@@ -162,7 +170,7 @@ export function ImageToPDFTool() {
     setErrorMessage(null);
     setResultBytes(null);
 
-    const options: ImageToPDFOptions = { orientation, margin };
+    const options: ImageToPDFOptions = { orientation, margin, fitMode };
 
     try {
       const bytes = await imagesToPDF(
@@ -218,7 +226,7 @@ export function ImageToPDFTool() {
       />
 
       {/* ── Left Panel (Preview Area) ───────────────────────────────────────── */}
-      <div 
+      <div
         className="flex-1 flex flex-col relative min-h-0 h-full overflow-hidden"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -246,7 +254,7 @@ export function ImageToPDFTool() {
               className={cn(
                 "relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-all select-none mb-6",
                 hasImages ? "py-8" : "py-20",
-                "border-[#D1D1CE] bg-card hover:border-[#E8607A] hover:bg-primary/10"
+                "border-[#D1D1CE] bg-card hover:border-[#E8607A] hover:bg-[#FFF0F3]"
               )}
             >
               <div className="flex flex-col items-center gap-2 pointer-events-none">
@@ -328,7 +336,7 @@ export function ImageToPDFTool() {
 
       {/* ── Right Panel (Settings & Action Bar) ────────────────────────────── */}
       <div className="w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
-        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
+        <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-[#FAFAFA]">
           <h2 className="text-[14px] font-bold text-foreground">Settings</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Configure PDF output</p>
         </div>
@@ -336,8 +344,42 @@ export function ImageToPDFTool() {
         <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
           {hasImages ? (
             <>
-              {/* Page orientation */}
+              {/* Fit Mode */}
               <div className="space-y-3">
+                <label className="text-[12px] font-bold text-foreground flex items-center gap-1.5">
+                  <Maximize2 className="w-4 h-4 text-[#A1A19D]" />
+                  Fit Mode
+                </label>
+                <div className="flex flex-col gap-2">
+                  {FIT_MODES.map((fm) => (
+                    <button
+                      key={fm.value}
+                      onClick={() => setFitMode(fm.value)}
+                      disabled={convertState === "converting"}
+                      className={cn(
+                        "w-full px-4 py-3 rounded-xl border text-left transition-all flex items-center justify-between",
+                        fitMode === fm.value
+                          ? "border-[#E8607A] bg-[#FFF0F3]"
+                          : "border-[#E5E5E3] bg-card hover:border-[#A1A19D]",
+                        convertState === "converting" && "opacity-60 cursor-not-allowed"
+                      )}
+                    >
+                      <div>
+                        <p className={cn("text-[13px] font-bold", fitMode === fm.value ? "text-[#E8607A]" : "text-foreground")}>
+                          {fm.label}
+                        </p>
+                        <p className="text-[12px] text-[#A1A19D] mt-0.5">{fm.sub}</p>
+                      </div>
+                      <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", fitMode === fm.value ? "border-[#E8607A]" : "border-[#D1D1CE]")}>
+                        {fitMode === fm.value && <div className="w-2 h-2 bg-[#E8607A] rounded-full" />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Page orientation */}
+              <div className="space-y-3 pt-2">
                 <label className="text-[12px] font-bold text-foreground flex items-center gap-1.5">
                   <LayoutTemplate className="w-4 h-4 text-[#A1A19D]" />
                   Page Orientation
@@ -351,7 +393,7 @@ export function ImageToPDFTool() {
                       className={cn(
                         "w-full px-4 py-3 rounded-xl border text-left transition-all flex items-center justify-between",
                         orientation === o.value
-                          ? "border-[#E8607A] bg-primary/10"
+                          ? "border-[#E8607A] bg-[#FFF0F3]"
                           : "border-[#E5E5E3] bg-card hover:border-[#A1A19D]",
                         convertState === "converting" && "opacity-60 cursor-not-allowed"
                       )}
@@ -363,7 +405,7 @@ export function ImageToPDFTool() {
                         <p className="text-[12px] text-[#A1A19D] mt-0.5">{o.sub}</p>
                       </div>
                       <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", orientation === o.value ? "border-[#E8607A]" : "border-[#D1D1CE]")}>
-                         {orientation === o.value && <div className="w-2 h-2 bg-[#E8607A] rounded-full" />}
+                        {orientation === o.value && <div className="w-2 h-2 bg-[#E8607A] rounded-full" />}
                       </div>
                     </button>
                   ))}
@@ -382,7 +424,7 @@ export function ImageToPDFTool() {
                       className={cn(
                         "px-3 py-2.5 rounded-lg border text-[13px] font-semibold transition-all",
                         margin === m.value
-                          ? "border-[#E8607A] bg-primary/10 text-[#E8607A]"
+                          ? "border-[#E8607A] bg-[#FFF0F3] text-[#E8607A]"
                           : "border-[#E5E5E3] bg-card text-[#6B7280] hover:border-[#A1A19D] hover:text-foreground",
                         convertState === "converting" && "opacity-60 cursor-not-allowed"
                       )}
@@ -403,10 +445,10 @@ export function ImageToPDFTool() {
         </div>
 
         {/* Action bar / Sticky Footer */}
-        <div className="p-5 border-t border-border bg-muted/40 flex-shrink-0 space-y-4">
+        <div className="p-5 border-t border-border bg-[#FAFAFA] flex-shrink-0 space-y-4">
           {/* Error state */}
           {convertState === "error" && errorMessage && (
-            <div className="flex items-start gap-3 p-3 bg-primary/10 rounded-lg border border-[#E8607A]/20 animate-slide-up">
+            <div className="flex items-start gap-3 p-3 bg-[#FFF0F3] rounded-lg border border-[#E8607A]/20 animate-slide-up">
               <AlertCircle className="w-4 h-4 text-[#E8607A] flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold text-foreground">Error</p>
@@ -482,8 +524,8 @@ export function ImageToPDFTool() {
                   convertState === "converting"
                     ? "bg-[#E8607A]/80 text-white cursor-wait"
                     : !canConvert
-                    ? "bg-muted text-[#A1A19D] cursor-not-allowed border border-border"
-                    : "bg-[#111111] hover:bg-[#333333] text-white shadow-md active:scale-[0.98]"
+                      ? "bg-muted text-[#A1A19D] cursor-not-allowed border border-border"
+                      : "bg-[#111111] hover:bg-[#333333] text-white shadow-md active:scale-[0.98]"
                 )}
               >
                 {convertState === "converting" ? (
