@@ -46,6 +46,7 @@ import {
   type OCREnhancementOptions,
   type OCRProgressEvent,
   type OCRResult,
+  type OCRPageResult,
 } from "@/lib/ocrPdf";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
