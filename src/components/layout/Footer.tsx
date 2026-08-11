@@ -127,18 +127,28 @@ export function Footer() {
               {[
                 { label: "About BloomPDF", href: "/about", external: false },
                 { label: "Stemlen.com", href: "https://stemlen.com", external: true },
+                { label: "Terms & Conditions", href: "/terms-and-conditions", external: false },
                 { label: "Favorites", href: "/#favorites", external: false },
                 { label: "Recent Tools", href: "/#recent", external: false },
               ].map((item) => (
                 <li key={item.label}>
-                  <a
-                    href={item.href}
-                    target={item.external ? "_blank" : undefined}
-                    rel={item.external ? "noopener noreferrer" : undefined}
-                    className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium inline-flex items-center gap-1"
-                  >
-                    {item.label}
-                  </a>
+                  {item.external ? (
+                    <a
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium inline-flex items-center gap-1"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium inline-flex items-center gap-1"
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
