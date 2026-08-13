@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { getToolUrl } from "@/lib/tools";
 import { 
   Github, 
   Linkedin, 
@@ -75,7 +76,7 @@ export function Footer() {
                 { name: "Protect PDF", slug: "protect-pdf" },
               ].map((item) => (
                 <li key={item.slug}>
-                  <Link href={`/tools/${item.slug}`} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
+                  <Link href={getToolUrl(item.slug)} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
                     {item.name}
                   </Link>
                 </li>

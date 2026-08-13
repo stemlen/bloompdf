@@ -12,7 +12,7 @@ import {
 import { ToolIcon } from "@/components/icons/ToolIcons";
 import { cn } from "@/lib/utils";
 import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
-import type { Tool } from "@/lib/tools";
+import { type Tool, getToolUrl } from "@/lib/tools";
 
 interface ToolCardProps {
   tool: Tool;
@@ -30,13 +30,14 @@ export function ToolCard({
   featured,
 }: ToolCardProps) {
   const category = getCategoryById(tool.categoryId);
+  const toolHref = getToolUrl(tool.slug);
 
   /* ── Compact (horizontal pill — used in Recent / Favorites) ── */
   if (compact) {
     return (
       <div className="relative group tool-card flex-shrink-0">
         <Link
-          href={`/tools/${tool.slug}`}
+          href={toolHref}
           className="flex items-center gap-3 bg-card rounded-xl border border-border shadow-card hover:shadow-card-hover px-3.5 py-3 transition-all duration-200 w-52"
           aria-label={tool.name}
         >
@@ -77,9 +78,9 @@ export function ToolCard({
   return (
     <div className="relative group tool-card">
       <Link
-        href={`/tools/${tool.slug}`}
+        href={toolHref}
         className={cn(
-          "flex flex-col bg-card rounded-2xl border border-border shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden",
+          "relative flex flex-col bg-card rounded-2xl border border-border shadow-card hover:shadow-card-hover transition-all duration-200 overflow-hidden",
           featured ? "p-6 lg:p-7" : "p-5 lg:p-6"
         )}
         aria-label={tool.name}

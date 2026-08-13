@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getToolBySlug, tools } from "@/lib/tools";
 import { getToolSeoData } from "@/lib/seoData";
@@ -15,6 +15,12 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  if (slug === "edit-pdf") {
+    return {
+      title: "Edit PDF Online — BloomPDF Editor",
+      description: "Edit PDF documents directly in your web browser with BloomPDF Editor.",
+    };
+  }
   const tool = getToolBySlug(slug);
   if (!tool) return { title: "Tool Not Found | BloomPDF" };
 
@@ -54,6 +60,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ToolPage({ params }: Props) {
   const { slug } = await params;
+  if (slug === "edit-pdf") {
+    redirect("https://editor.bloompdf.app/");
+  }
   const tool = getToolBySlug(slug);
   if (!tool) notFound();
 

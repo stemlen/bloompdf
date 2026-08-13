@@ -10,6 +10,7 @@ import {
   X,
   Menu,
   ChevronDown,
+  ExternalLink,
   // All PDF Tools / category icons
   LayoutGrid,
   Scissors,
@@ -46,7 +47,34 @@ import { useSearch } from "@/lib/hooks/useSearch";
 import type { LucideIcon } from "lucide-react";
 import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
 import { ToolIcon } from "@/components/icons/ToolIcons";
+import { getToolUrl } from "@/lib/tools";
 import { ThemeToggle } from "./ThemeToggle";
+
+function CustomEditIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12.75 4.75L15.25 7.25L7.5 15H5V12.5L12.75 4.75Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11 6.5L13.5 9"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -176,19 +204,19 @@ function ToolLink({ tool, onClick, catId }: { tool: MegaToolItem; onClick?: () =
   const category = catId ? getCategoryById(catId) : undefined;
   return (
     <Link
-      href={`/tools/${tool.slug}`}
+      href={getToolUrl(tool.slug)}
       onClick={onClick}
-      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-muted transition-colors group"
+      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-muted transition-colors group min-w-0"
     >
       <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
         <ToolIcon slug={tool.slug} size={24} />
       </div>
-      <div className="min-w-0">
-        <p className="text-[12.5px] font-medium text-foreground leading-tight whitespace-nowrap">
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] font-medium text-foreground leading-tight truncate">
           {tool.name}
         </p>
         {tool.description && (
-          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 whitespace-nowrap">
+          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate" title={tool.description}>
             {tool.description}
           </p>
         )}
@@ -342,6 +370,15 @@ export function TopNav() {
                   </button>
                 </div>
               ))}
+              <a
+                href="https://editor.bloompdf.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-150 flex items-center gap-1.5"
+              >
+                <CustomEditIcon className="w-4 h-4" />
+                <span>PDF Editor</span>
+              </a>
               <Link
                 href="/about"
                 className="px-3.5 py-2 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-150"
@@ -400,7 +437,7 @@ export function TopNav() {
                           return (
                             <Link
                               key={tool.slug}
-                              href={`/tools/${tool.slug}`}
+                              href={getToolUrl(tool.slug)}
                               onClick={() => {
                                 clear();
                                 setSearchExpanded(false);
@@ -501,7 +538,7 @@ export function TopNav() {
                           <CatIcon className="w-3 h-3" style={{ color: cat.color }} />
                         </div>
                         <span
-                          className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap"
+                          className="text-[11px] font-bold uppercase tracking-wider truncate"
                           style={{ color: cat.color }}
                         >
                           {cat.label}
@@ -672,11 +709,23 @@ export function TopNav() {
         {mobileOpen && (
           <div className="md:hidden border-t border-border bg-card animate-fade-in max-h-[80vh] overflow-y-auto z-50 shadow-2xl">
             <div className="px-4 py-4 space-y-4">
-              <div className="pb-2 border-b border-border">
+              <div className="pb-2 border-b border-border space-y-2">
+                <a
+                  href="https://editor.bloompdf.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-muted/70 hover:bg-muted text-foreground font-semibold text-[13.5px] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <CustomEditIcon className="w-4.5 h-4.5" />
+                    <span>PDF Editor</span>
+                  </span>
+                </a>
                 <Link
                   href="/about"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-primary/10 text-primary font-bold text-[13.5px]"
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-muted text-foreground font-bold text-[13.5px]"
                 >
                   <span>About BloomPDF & Stemlen</span>
                   <ArrowRight className="w-4 h-4" />
@@ -693,7 +742,7 @@ export function TopNav() {
                       {cat.tools.map((tool) => (
                         <Link
                           key={tool.slug}
-                          href={`/tools/${tool.slug}`}
+                          href={getToolUrl(tool.slug)}
                           onClick={() => setMobileOpen(false)}
                           className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-muted"
                         >

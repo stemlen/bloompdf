@@ -35,6 +35,7 @@ export interface Tool {
   maxFiles?: number;
   outputFormat: string;
   layoutType?: "workspace" | "form";
+  externalUrl?: string;
 }
 
 export const tools: Tool[] = [
@@ -553,6 +554,7 @@ export const tools: Tool[] = [
     tags: ["edit", "annotate", "text", "draw", "highlight", "comment"],
     outputFormat: "PDF",
     options: [],
+    externalUrl: "https://editor.bloompdf.app/",
   },
   {
     slug: "rotate-pdf",
@@ -795,6 +797,13 @@ export const tools: Tool[] = [
 
 export function getToolBySlug(slug: string): Tool | undefined {
   return tools.find((t) => t.slug === slug);
+}
+
+export function getToolUrl(slug: string): string {
+  if (slug === "edit-pdf") {
+    return "https://editor.bloompdf.app/";
+  }
+  return `/tools/${slug}`;
 }
 
 export function getToolsByCategory(categoryId: string): Tool[] {
