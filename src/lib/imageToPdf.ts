@@ -31,10 +31,12 @@ export const MAX_IMAGE_COUNT = 30;
 
 export type PageOrientation = "auto" | "portrait" | "landscape";
 export type PageMarginSize = "none" | "small" | "medium" | "large";
+export type FitMode = "fit" | "fill" | "original";
 
 export interface ImageToPDFOptions {
   orientation: PageOrientation;
   margin: PageMarginSize;
+  fitMode?: FitMode;
 }
 
 // ─── Page dimensions (points) ────────────────────────────────────────────────
@@ -209,11 +211,14 @@ export async function imagesToPDF(
     let pageH: number;
 
     if (options.orientation === "auto") {
-      // Page is sized to the image (capped at 3×A4 to avoid absurdly large pages)
-      const cap = Math.max(A4_W, A4_H) * 4;
-      const s = Math.min(1, cap / Math.max(imgW, imgH));
-      pageW = imgW * s;
-      pageH = imgH * s;
+      // Auto orientation: A4 Portrait or Landscape per image aspect ratio
+      if (imgW > imgH) {
+        pageW = A4_H;
+        pageH = A4_W;
+      } else {
+        pageW = A4_W;
+        pageH = A4_H;
+      }
     } else if (options.orientation === "portrait") {
       pageW = A4_W;
       pageH = A4_H;
@@ -225,10 +230,24 @@ export async function imagesToPDF(
 
     const page = pdfDoc.addPage([pageW, pageH]);
 
-    // ── Scale image to fill available area, centred ────────────────────────
-    const availW = pageW - margin * 2;
-    const availH = pageH - margin * 2;
-    const scale = Math.min(availW / imgW, availH / imgH, 1); // never upscale past 100%
+    // ── Scale image according to fitMode ────────────────────────────────────
+    const availW = Math.max(0, pageW - margin * 2);
+    const availH = Math.max(0, pageH - margin * 2);
+
+    const fit = options.fitMode ?? "fit";
+    let scale: number;
+
+    if (fit === "fill") {
+      // Fill Page: cover printable area preserving aspect ratio
+      scale = Math.max(availW / imgW, availH / imgH);
+    } else if (fit === "original") {
+      // Original Size: 1:1 size without scaling up (scaled down only if larger than printable area)
+      scale = Math.min(availW / imgW, availH / imgH, 1);
+    } else {
+      // Fit to Page (default): fit within printable area preserving aspect ratio
+      scale = Math.min(availW / imgW, availH / imgH);
+    }
+
     const drawW = imgW * scale;
     const drawH = imgH * scale;
     const x = margin + (availW - drawW) / 2;

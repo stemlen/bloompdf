@@ -18,11 +18,27 @@ import * as pdfjsLib from "pdfjs-dist";
 export type OCROutputMode = "searchable-pdf" | "extract-text";
 export type OCRLanguage = "eng" | "fra" | "deu" | "spa" | "ita" | "por" | "jpn" | "chi_sim" | "kor" | "ara";
 
+export interface OCRWord {
+  text: string;
+  confidence: number;
+  bbox: {
+    x0: number; // left in canvas px
+    y0: number; // top in canvas px
+    x1: number; // right in canvas px
+    y1: number; // bottom in canvas px
+  };
+}
+
 export interface OCRPageResult {
   pageNumber: number;     // 1-indexed
   text: string;           // recognized text
   confidence: number;     // 0-100
   imageDataUrl: string;   // rendered page image
+  width: number;          // canvas width (px)
+  height: number;         // canvas height (px)
+  pdfWidth: number;       // PDF page width (pt)
+  pdfHeight: number;      // PDF page height (pt)
+  words: OCRWord[];       // word bounding boxes from OCR engine
 }
 
 export interface OCRResult {
@@ -74,7 +90,7 @@ function enhanceImageData(
     }
     const range = max - min || 1;
     for (let i = 0; i < data.length; i += 4) {
-      data[i]     = Math.min(255, ((data[i]     - min) / range) * 255);
+      data[i] = Math.min(255, ((data[i] - min) / range) * 255);
       data[i + 1] = Math.min(255, ((data[i + 1] - min) / range) * 255);
       data[i + 2] = Math.min(255, ((data[i + 2] - min) / range) * 255);
     }
@@ -94,15 +110,21 @@ function enhanceImageData(
 
 /**
  * Render a PDF page to a high-res canvas suitable for OCR.
- * Returns the canvas element and its image data.
+ * Returns the canvas element, image data, and PDF page dimensions.
  */
 async function renderPageToCanvas(
   pdfDoc: pdfjsLib.PDFDocumentProxy,
   pageNumber: number,
   scale: number = 2.0,
   opts: OCREnhancementOptions
-): Promise<{ canvas: HTMLCanvasElement; dataUrl: string }> {
+): Promise<{
+  canvas: HTMLCanvasElement;
+  dataUrl: string;
+  pdfWidth: number;
+  pdfHeight: number;
+}> {
   const page = await pdfDoc.getPage(pageNumber);
+  const unscaledViewport = page.getViewport({ scale: 1.0 });
   const viewport = page.getViewport({ scale });
 
   const canvas = document.createElement("canvas");
@@ -124,7 +146,12 @@ async function renderPageToCanvas(
   }
 
   const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-  return { canvas, dataUrl };
+  return {
+    canvas,
+    dataUrl,
+    pdfWidth: unscaledViewport.width,
+    pdfHeight: unscaledViewport.height,
+  };
 }
 
 // ─── Tesseract worker pool ────────────────────────────────────────────────────
@@ -149,7 +176,7 @@ async function getWorker(lang: OCRLanguage): Promise<import("tesseract.js").Work
     langPath: "https://tessdata.projectnaptha.com/4.0.0",
     corePath: `https://cdn.jsdelivr.net/npm/tesseract.js-core@6/tesseract-core-simd-lstm.wasm.js`,
     cacheMethod: "write",
-    logger: () => {}, // silence verbose logs
+    logger: () => { }, // silence verbose logs
   });
 
   _worker = worker;
@@ -216,18 +243,44 @@ export async function runOCR(
     // --- Render phase ---
     onProgress({ phase: "rendering", page: pageNum, totalPages: n, pct: Math.round(overallBase) });
 
-    const { canvas, dataUrl } = await renderPageToCanvas(pdfDoc, pageNum, 2.0, enhancement);
+    const { canvas, dataUrl, pdfWidth, pdfHeight } = await renderPageToCanvas(pdfDoc, pageNum, 2.0, enhancement);
 
     // --- OCR phase ---
     onProgress({ phase: "ocr", page: pageNum, totalPages: n, pct: Math.round(overallBase + (0.4 / n) * 90) });
 
     const { data } = await worker.recognize(canvas);
+    const pageData = data as any;
+
+    const rawWords: any[] =
+      pageData.words ||
+      pageData.blocks?.flatMap((b: any) =>
+        b.paragraphs?.flatMap((p: any) =>
+          p.lines?.flatMap((l: any) => l.words || [])
+        )
+      ) ||
+      [];
+
+    const words: OCRWord[] = rawWords.map((w: any) => ({
+      text: w.text,
+      confidence: Math.round(w.confidence || 0),
+      bbox: {
+        x0: w.bbox?.x0 ?? 0,
+        y0: w.bbox?.y0 ?? 0,
+        x1: w.bbox?.x1 ?? 0,
+        y1: w.bbox?.y1 ?? 0,
+      },
+    }));
 
     pageResults.push({
       pageNumber: pageNum,
       text: data.text,
       confidence: Math.round(data.confidence),
       imageDataUrl: dataUrl,
+      width: canvas.width,
+      height: canvas.height,
+      pdfWidth,
+      pdfHeight,
+      words,
     });
 
     onProgress({
@@ -258,47 +311,54 @@ export async function runOCR(
   }
 
   // Build searchable PDF: embed page images + invisible text overlay
-  const srcArrayBuffer = await file.arrayBuffer();
-  const srcPdf = await import("pdf-lib").then(({ PDFDocument }) =>
-    PDFDocument.load(srcArrayBuffer, { ignoreEncryption: true })
-  );
-
   const outPdf = await (await import("pdf-lib")).PDFDocument.create();
   const helvetica = await outPdf.embedFont(StandardFonts.Helvetica);
 
-  // Map page sizes from source
   for (let i = 0; i < pageResults.length; i++) {
     const result = pageResults[i];
-    const srcPageIndex = result.pageNumber - 1;
-    const srcPageSize = srcPdf.getPage(srcPageIndex);
-    const { width, height } = srcPageSize.getSize();
+    const { pdfWidth, pdfHeight, width: canvasW, height: canvasH, words } = result;
+
+    const scaleX = pdfWidth / canvasW;
+    const scaleY = pdfHeight / canvasH;
 
     // Embed the rendered image
     const imgBytes = dataURLtoBytes(result.imageDataUrl);
     const embeddedImg = await outPdf.embedJpg(imgBytes);
 
-    const page = outPdf.addPage([width, height]);
+    const page = outPdf.addPage([pdfWidth, pdfHeight]);
 
     // Draw the image filling the page
-    page.drawImage(embeddedImg, { x: 0, y: 0, width, height });
+    page.drawImage(embeddedImg, { x: 0, y: 0, width: pdfWidth, height: pdfHeight });
 
-    // Draw invisible text overlay (for text selection / search)
-    // Tesseract gives words with bounding boxes normalized to image dims
-    // We rescale to PDF page coordinates
-    const words = await rerenderWordsWithBoxes(result.text, width, height);
+    // Draw invisible text overlay precisely aligned over each word
     for (const word of words) {
-      if (!word.text.trim()) continue;
+      const textStr = word.text.trim();
+      if (!textStr) continue;
+
+      const boxW = (word.bbox.x1 - word.bbox.x0) * scaleX;
+      const boxH = (word.bbox.y1 - word.bbox.y0) * scaleY;
+      if (boxW <= 0 || boxH <= 0) continue;
+
+      const pdfX = word.bbox.x0 * scaleX;
+      // In PDF coordinate space (origin at bottom-left):
+      // Align baseline: font ascender fits inside box, descender (~18%) sits at bottom of box
+      const pdfY = pdfHeight - (word.bbox.y1 * scaleY) + (boxH * 0.18);
+      // Calculate font size respecting height and max character width constraint so glyphs don't spill
+      const heightFontSize = boxH * 0.88;
+      const widthFontSize = boxW / Math.max(1, textStr.length * 0.52);
+      const fontSize = Math.max(2, Math.min(heightFontSize, widthFontSize));
+
       try {
-        page.drawText(word.text, {
-          x: word.x,
-          y: height - word.y - word.h,  // PDF y-axis is bottom-up
-          size: Math.max(4, word.h * 0.85),
+        page.drawText(textStr, {
+          x: pdfX,
+          y: pdfY,
+          size: fontSize,
           font: helvetica,
           color: rgb(0, 0, 0),
-          opacity: 0.0001, // invisible but selectable
+          opacity: 0.0001, // Invisible searchable/selectable text
         });
       } catch {
-        // skip words that fail (special chars etc.)
+        // Skip characters/words that standard Helvetica cannot encode (e.g. CJK/Arabic)
       }
     }
 

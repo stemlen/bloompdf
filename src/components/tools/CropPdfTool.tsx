@@ -2,8 +2,23 @@
 
 import { useState, useRef, useEffect } from "react";
 import {
-  X, Upload, Download, Loader2, CheckCircle2, AlertCircle, RefreshCw,
-  Crop, Maximize, RotateCcw, Copy, ChevronLeft, ChevronRight, LayoutGrid
+  X,
+  Upload,
+  Download,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Crop,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  FileText,
+  Layers,
 } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
 import { validatePDFFile } from "@/lib/splitPdf";
@@ -14,6 +29,7 @@ import { PDFDocument } from "pdf-lib";
 
 type ToolState = "idle" | "loading" | "ready" | "processing" | "done" | "error";
 type CropRect = { top: number; left: number; width: number; height: number };
+type CropScope = "current" | "all";
 
 interface PDFInfo {
   file: File;
@@ -37,26 +53,36 @@ export function CropPdfTool() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [toolState, setToolState] = useState<ToolState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
+
   // Thumbnails
   const [thumbnails, setThumbnails] = useState<PageThumb[]>([]);
   const [currentPreviewSlide, setCurrentPreviewSlide] = useState(0);
   const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
-  
-  // Crop state per page
+
+  // Crop state
   const [crops, setCrops] = useState<{ [key: number]: CropRect }>({});
-  
+  const [cropScope, setCropScope] = useState<CropScope>("current");
+  const [zoom, setZoom] = useState(100);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Drag and Resize State
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState<string | null>(null);
-  const dragStartRef = useRef<{ x: number, y: number, crop: CropRect } | null>(null);
 
-  const currentCrop = crops[currentPreviewSlide] || { top: 0, left: 0, width: 100, height: 100 };
+  const defaultCrop: CropRect = { top: 0, left: 0, width: 100, height: 100 };
+  const currentCrop = crops[currentPreviewSlide] || defaultCrop;
   const [resultBlobUrl, setResultBlobUrl] = useState<string | null>(null);
-  
+
+  // Refs to always have latest values inside pointer event closures
+  const cropScopeRef = useRef<CropScope>("current");
+  const currentPreviewSlideRef = useRef<number>(0);
+  const thumbnailsRef = useRef<PageThumb[]>([]);
+  useEffect(() => { cropScopeRef.current = cropScope; }, [cropScope]);
+  useEffect(() => { currentPreviewSlideRef.current = currentPreviewSlide; }, [currentPreviewSlide]);
+  useEffect(() => { thumbnailsRef.current = thumbnails; }, [thumbnails]);
+
   useEffect(() => {
     return () => {
       if (resultBlobUrl) URL.revokeObjectURL(resultBlobUrl);
@@ -69,7 +95,11 @@ export function CropPdfTool() {
     const file = raw[0];
     if (!file) return;
     const err = validatePDFFile(file);
-    if (err) { setErrorMessage(err); setToolState("error"); return; }
+    if (err) {
+      setErrorMessage(err);
+      setToolState("error");
+      return;
+    }
 
     setPdfInfo(null);
     setThumbnails([]);
@@ -86,12 +116,11 @@ export function CropPdfTool() {
       const total = pdfDoc.numPages;
       setPdfInfo({ file, name: file.name, size: file.size, totalPages: total });
 
-      const limit = Math.min(total, 50);
       const newThumbs: PageThumb[] = [];
-      for (let i = 1; i <= limit; i++) {
+      for (let i = 1; i <= total; i++) {
         const page = await pdfDoc.getPage(i);
         const viewport = page.getViewport({ scale: 1.0 });
-        const dataUrl = await renderPageToDataURL(pdfDoc, i, 1.0);
+        const dataUrl = await renderPageToDataURL(pdfDoc, i, 1.2);
         newThumbs.push({ index: i - 1, dataUrl, width: viewport.width, height: viewport.height });
       }
       setThumbnails(newThumbs);
@@ -103,10 +132,14 @@ export function CropPdfTool() {
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); setIsDragOver(false);
+    e.preventDefault();
+    setIsDragOver(false);
     if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   };
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
   const handleDragLeave = (e: React.DragEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false);
   };
@@ -116,151 +149,168 @@ export function CropPdfTool() {
   };
 
   const handleReset = () => {
-    setPdfInfo(null); setPdfBytes(null); setThumbnails([]); setCrops({});
-    if (resultBlobUrl) { URL.revokeObjectURL(resultBlobUrl); setResultBlobUrl(null); }
-    setToolState("idle"); setErrorMessage(null);
+    setPdfInfo(null);
+    setPdfBytes(null);
+    setThumbnails([]);
+    setCrops({});
+    setCropScope("current");
+    setZoom(100);
+    if (resultBlobUrl) {
+      URL.revokeObjectURL(resultBlobUrl);
+      setResultBlobUrl(null);
+    }
+    setToolState("idle");
+    setErrorMessage(null);
   };
 
   // ── Crop Helpers ─────────────────────────────────────────────────────────
 
   const updateCurrentCrop = (newCrop: Partial<CropRect>) => {
-    setCrops(prev => ({
-      ...prev,
-      [currentPreviewSlide]: { ...currentCrop, ...newCrop }
-    }));
-  };
-
-  const applyMargin = (marginPct: number) => {
-    updateCurrentCrop({
-      top: marginPct,
-      left: marginPct,
-      width: 100 - (marginPct * 2),
-      height: 100 - (marginPct * 2)
-    });
-  };
-
-  const applyToAllPages = () => {
-    const newCrops: { [key: number]: CropRect } = {};
-    thumbnails.forEach((_, idx) => {
-      newCrops[idx] = { ...currentCrop };
-    });
-    setCrops(newCrops);
-  };
-
-  const autoTrim = () => {
-    const thumb = thumbnails[currentPreviewSlide];
-    if (!thumb) return;
-    
-    const img = new Image();
-    img.src = thumb.dataUrl;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imgData.data;
-      
-      let top = 0, bottom = canvas.height, left = 0, right = canvas.width;
-      
-      const isNotWhite = (x: number, y: number) => {
-        const idx = (y * canvas.width + x) * 4;
-        return data[idx] < 250 || data[idx+1] < 250 || data[idx+2] < 250;
-      };
-
-      top_loop: for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-          if (isNotWhite(x, y)) { top = y; break top_loop; }
-        }
-      }
-      bottom_loop: for (let y = canvas.height - 1; y >= 0; y--) {
-        for (let x = 0; x < canvas.width; x++) {
-          if (isNotWhite(x, y)) { bottom = y; break bottom_loop; }
-        }
-      }
-      left_loop: for (let x = 0; x < canvas.width; x++) {
-        for (let y = 0; y < canvas.height; y++) {
-          if (isNotWhite(x, y)) { left = x; break left_loop; }
-        }
-      }
-      right_loop: for (let x = canvas.width - 1; x >= 0; x--) {
-        for (let y = 0; y < canvas.height; y++) {
-          if (isNotWhite(x, y)) { right = x; break right_loop; }
-        }
-      }
-
-      top = Math.max(0, top - 5);
-      bottom = Math.min(canvas.height, bottom + 5);
-      left = Math.max(0, left - 5);
-      right = Math.min(canvas.width, right + 5);
-
-      updateCurrentCrop({
-        top: (top / canvas.height) * 100,
-        left: (left / canvas.width) * 100,
-        width: ((right - left) / canvas.width) * 100,
-        height: ((bottom - top) / canvas.height) * 100
+    const updated = { ...currentCrop, ...newCrop };
+    if (cropScope === "all") {
+      const newCrops: { [key: number]: CropRect } = {};
+      thumbnails.forEach((_, idx) => {
+        newCrops[idx] = { ...updated };
       });
-    };
+      setCrops(newCrops);
+    } else {
+      setCrops((prev) => ({
+        ...prev,
+        [currentPreviewSlide]: updated,
+      }));
+    }
   };
 
-  // ── Drag & Resize ────────────────────────────────────────────────────────
+  const handleMarginChange = (edge: "top" | "bottom" | "left" | "right", value: number) => {
+    const val = Number.isNaN(value) ? 0 : value;
+    const currentTop = currentCrop.top;
+    const currentLeft = currentCrop.left;
+    const currentBottom = 100 - (currentCrop.top + currentCrop.height);
+    const currentRight = 100 - (currentCrop.left + currentCrop.width);
 
-  const handlePointerDown = (e: React.PointerEvent, handle: string | null = null) => {
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragStartRef.current = { x: e.clientX, y: e.clientY, crop: { ...currentCrop } };
-    
-    if (handle) setIsResizing(handle);
-    else setIsDragging(true);
-  };
+    let newTop = currentTop;
+    let newLeft = currentLeft;
+    let newHeight = currentCrop.height;
+    let newWidth = currentCrop.width;
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragStartRef.current || !containerRef.current) return;
-    
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const deltaX = e.clientX - dragStartRef.current.x;
-    const deltaY = e.clientY - dragStartRef.current.y;
-    
-    const deltaXPct = (deltaX / containerRect.width) * 100;
-    const deltaYPct = (deltaY / containerRect.height) * 100;
-    
-    const startCrop = dragStartRef.current.crop;
-    let { top, left, width, height } = startCrop;
-
-    if (isDragging) {
-      left = Math.max(0, Math.min(100 - width, startCrop.left + deltaXPct));
-      top = Math.max(0, Math.min(100 - height, startCrop.top + deltaYPct));
-    } else if (isResizing) {
-      if (isResizing.includes('n')) {
-        top = Math.max(0, Math.min(startCrop.top + startCrop.height - 2, startCrop.top + deltaYPct));
-        height = startCrop.height + (startCrop.top - top);
-      }
-      if (isResizing.includes('s')) {
-        height = Math.max(2, Math.min(100 - startCrop.top, startCrop.height + deltaYPct));
-      }
-      if (isResizing.includes('w')) {
-        left = Math.max(0, Math.min(startCrop.left + startCrop.width - 2, startCrop.left + deltaXPct));
-        width = startCrop.width + (startCrop.left - left);
-      }
-      if (isResizing.includes('e')) {
-        width = Math.max(2, Math.min(100 - startCrop.left, startCrop.width + deltaXPct));
-      }
+    if (edge === "top") {
+      const clampedTop = Math.max(0, Math.min(100 - currentBottom - 2, val));
+      newTop = clampedTop;
+      newHeight = 100 - clampedTop - currentBottom;
+    } else if (edge === "bottom") {
+      const clampedBottom = Math.max(0, Math.min(100 - currentTop - 2, val));
+      newHeight = 100 - currentTop - clampedBottom;
+    } else if (edge === "left") {
+      const clampedLeft = Math.max(0, Math.min(100 - currentRight - 2, val));
+      newLeft = clampedLeft;
+      newWidth = 100 - clampedLeft - currentRight;
+    } else if (edge === "right") {
+      const clampedRight = Math.max(0, Math.min(100 - currentLeft - 2, val));
+      newWidth = 100 - currentLeft - clampedRight;
     }
 
-    updateCurrentCrop({ top, left, width, height });
+    updateCurrentCrop({ top: newTop, left: newLeft, width: newWidth, height: newHeight });
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
-    setIsDragging(false);
-    setIsResizing(null);
-    dragStartRef.current = null;
-    e.currentTarget.releasePointerCapture(e.pointerId);
+  const handleScopeChange = (newScope: CropScope) => {
+    setCropScope(newScope);
+    if (newScope === "all") {
+      const newCrops: { [key: number]: CropRect } = {};
+      thumbnails.forEach((_, idx) => {
+        newCrops[idx] = { ...currentCrop };
+      });
+      setCrops(newCrops);
+    }
   };
 
-  // ── Processing ───────────────────────────────────────────────────────────
+  const handleResetAll = () => {
+    setCrops({});
+  };
+
+  // ── Global Pointer Event Dragging (uses refs to avoid stale closures) ────────
+
+  const handlePointerDown = (e: React.PointerEvent, handle: string | null = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    // Capture the crop at pointer-down time — this is our fixed reference point
+    const startCrop = { ...currentCrop };
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    if (!containerRect || containerRect.width === 0 || containerRect.height === 0) return;
+
+    setIsDragging(!handle);
+    setIsResizing(handle);
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+
+      const deltaXPct = (deltaX / containerRect.width) * 100;
+      const deltaYPct = (deltaY / containerRect.height) * 100;
+
+      // Always compute from startCrop (fixed at pointer-down) + delta
+      let top = startCrop.top;
+      let left = startCrop.left;
+      let width = startCrop.width;
+      let height = startCrop.height;
+
+      if (!handle) {
+        // Dragging the crop box itself
+        left = Math.max(0, Math.min(100 - width, startCrop.left + deltaXPct));
+        top = Math.max(0, Math.min(100 - height, startCrop.top + deltaYPct));
+      } else {
+        // North (top) edge — moves the top boundary downward/upward
+        if (handle.includes("n")) {
+          const newTop = Math.max(0, Math.min(startCrop.top + startCrop.height - 2, startCrop.top + deltaYPct));
+          top = newTop;
+          height = startCrop.height + (startCrop.top - newTop);
+        }
+        // South (bottom) edge
+        if (handle.includes("s")) {
+          height = Math.max(2, Math.min(100 - startCrop.top, startCrop.height + deltaYPct));
+        }
+        // West (left) edge
+        if (handle.includes("w")) {
+          const newLeft = Math.max(0, Math.min(startCrop.left + startCrop.width - 2, startCrop.left + deltaXPct));
+          left = newLeft;
+          width = startCrop.width + (startCrop.left - newLeft);
+        }
+        // East (right) edge
+        if (handle.includes("e")) {
+          width = Math.max(2, Math.min(100 - startCrop.left, startCrop.width + deltaXPct));
+        }
+      }
+
+      // Use refs to get the latest scope + slide without stale closure
+      const scope = cropScopeRef.current;
+      const slide = currentPreviewSlideRef.current;
+      const thumbs = thumbnailsRef.current;
+      const updated: CropRect = { top, left, width, height };
+
+      if (scope === "all") {
+        const newCrops: { [key: number]: CropRect } = {};
+        thumbs.forEach((_, idx) => { newCrops[idx] = { ...updated }; });
+        setCrops(newCrops);
+      } else {
+        setCrops((prev) => ({ ...prev, [slide]: updated }));
+      }
+    };
+
+    const onPointerUp = () => {
+      setIsDragging(false);
+      setIsResizing(null);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  };
+
+  // ── Processing with Rotation-Aware PDF Crop Box Mapping ────────────────────
 
   const handleProcess = async () => {
     if (!pdfBytes) return;
@@ -272,20 +322,79 @@ export function CropPdfTool() {
       const pages = pdfDoc.getPages();
 
       for (let i = 0; i < pages.length; i++) {
-        const crop = crops[i] || { top: 0, left: 0, width: 100, height: 100 };
+        const crop = crops[i] || (cropScope === "all" ? currentCrop : defaultCrop);
         if (crop.top === 0 && crop.left === 0 && crop.width === 100 && crop.height === 100) continue;
 
         const page = pages[i];
-        const { width: pageWidth, height: pageHeight } = page.getSize();
         
-        const cropX = (crop.left / 100) * pageWidth;
-        const cropWidth = (crop.width / 100) * pageWidth;
-        const cropHeight = (crop.height / 100) * pageHeight;
-        
-        const cropY = ((100 - crop.top - crop.height) / 100) * pageHeight;
+        // Retrieve page rotation and mediaBox
+        const rotationAngle = (page.getRotation().angle % 360 + 360) % 360;
+        const mediaBox = page.getMediaBox() || { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() };
 
-        page.setCropBox(cropX, cropY, cropWidth, cropHeight);
-        page.setMediaBox(cropX, cropY, cropWidth, cropHeight);
+        const cL = crop.left / 100;
+        const cT = crop.top / 100;
+        const cW = crop.width / 100;
+        const cH = crop.height / 100;
+
+        // Browser: origin top-left, Y grows down.
+        // PDF:     origin bottom-left, Y grows up.
+        //
+        // Visual crop rect in fractions:
+        //   cT = fraction from top of image to top of crop box
+        //   cL = fraction from left
+        //   cW = fraction of width to keep
+        //   cH = fraction of height to keep
+        //
+        // For 0° rotation:
+        //   pdfX = mediaBox.x + cL * mediaBox.width
+        //   pdfY = mediaBox.y + (1 - cT - cH) * mediaBox.height  ← bottom of crop box in PDF space
+        //   pdfW = cW * mediaBox.width
+        //   pdfH = cH * mediaBox.height
+        //
+        // cT = 0, cH = 1 → full height → pdfY = mediaBox.y (correct: bottom of page)
+        // cT = 0.2, cH = 0.8 → crop top 20% → pdfY = mediaBox.y + 0 = mediaBox.y (correct: bottom of kept area)
+        // cT = 0, cH = 0.8 → crop bottom 20% → pdfY = mediaBox.y + 0.2 * h (correct: bottom 20% removed)
+
+        let pdfX: number, pdfY: number, pdfW: number, pdfH: number;
+
+        if (rotationAngle === 0) {
+          pdfX = mediaBox.x + cL * mediaBox.width;
+          pdfY = mediaBox.y + (1 - cT - cH) * mediaBox.height;
+          pdfW = cW * mediaBox.width;
+          pdfH = cH * mediaBox.height;
+        } else if (rotationAngle === 90) {
+          // Visual top → PDF right; visual left → PDF bottom
+          pdfX = mediaBox.x + cT * mediaBox.width;
+          pdfY = mediaBox.y + cL * mediaBox.height;
+          pdfW = cH * mediaBox.width;
+          pdfH = cW * mediaBox.height;
+        } else if (rotationAngle === 180) {
+          // Visual top → PDF bottom; visual left → PDF right
+          pdfX = mediaBox.x + (1 - cL - cW) * mediaBox.width;
+          pdfY = mediaBox.y + cT * mediaBox.height;
+          pdfW = cW * mediaBox.width;
+          pdfH = cH * mediaBox.height;
+        } else if (rotationAngle === 270) {
+          // Visual top → PDF left; visual left → PDF top
+          pdfX = mediaBox.x + (1 - cT - cH) * mediaBox.width;
+          pdfY = mediaBox.y + (1 - cL - cW) * mediaBox.height;
+          pdfW = cH * mediaBox.width;
+          pdfH = cW * mediaBox.height;
+        } else {
+          pdfX = mediaBox.x + cL * mediaBox.width;
+          pdfY = mediaBox.y + (1 - cT - cH) * mediaBox.height;
+          pdfW = cW * mediaBox.width;
+          pdfH = cH * mediaBox.height;
+        }
+
+        console.log(`[CropPDF] Page ${i + 1}: rotation=${rotationAngle}°`, {
+          crop: { top: crop.top, left: crop.left, width: crop.width, height: crop.height },
+          mediaBox,
+          pdfBox: { pdfX, pdfY, pdfW, pdfH },
+        });
+
+        page.setCropBox(pdfX, pdfY, pdfW, pdfH);
+        page.setMediaBox(pdfX, pdfY, pdfW, pdfH);
       }
 
       const finalBytes = await pdfDoc.save();
@@ -308,7 +417,10 @@ export function CropPdfTool() {
   };
 
   const renderHandle = (type: string, cls: string) => (
-    <div onPointerDown={(e) => handlePointerDown(e, type)} className={cn("absolute bg-[#E8607A] shadow-sm z-50", cls)} />
+    <div
+      onPointerDown={(e) => handlePointerDown(e, type)}
+      className={cn("absolute bg-[#E8607A] z-50 transition-transform hover:scale-125 touch-none select-none", cls)}
+    />
   );
 
   const thumbSize = thumbnails[currentPreviewSlide];
@@ -319,33 +431,34 @@ export function CropPdfTool() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col md:flex-row w-full h-full bg-muted relative">
-      <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleInputChange} className="hidden" />
+    <div className="flex flex-col md:flex-row w-full h-full bg-muted relative overflow-hidden">
+      <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleInputChange} className="hidden" aria-hidden />
 
-      {/* Left Panel */}
+      {/* ── Left Panel: Minimal Controls ─────────────────────────────────── */}
       <div className="w-full md:w-[320px] lg:w-[360px] bg-card border-r border-border flex flex-col flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[40vh] md:h-full">
+        {/* Header */}
         <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40">
           <h2 className="text-[14px] font-bold text-foreground">Crop PDF</h2>
-          <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Trim margins and resize pages</p>
+          <p className="text-[12px] text-muted-foreground mt-0.5 font-medium">Trim margins and crop pages accurately</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {/* Scrollable Controls Body */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-6">
           {!pdfInfo ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center h-full">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-                 <Crop className="w-5 h-5 text-[#E8607A]" />
+                <Crop className="w-5 h-5 text-[#E8607A]" />
               </div>
               <p className="text-[13px] font-bold text-foreground">No file selected</p>
               <p className="text-[12px] text-muted-foreground mt-1">Upload a PDF to start cropping</p>
             </div>
           ) : (
-            <div className="p-5 flex flex-col gap-6">
-              
+            <>
               {/* File Info */}
               <div className="flex items-center justify-between p-3 bg-[#F8F8F7] border border-[#E5E5E3] rounded-xl shadow-sm">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Crop className="w-4 h-4 text-[#E8607A]" />
+                    <FileText className="w-4 h-4 text-[#E8607A]" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[13px] font-bold text-foreground truncate">{pdfInfo.name}</p>
@@ -354,60 +467,214 @@ export function CropPdfTool() {
                     </p>
                   </div>
                 </div>
-                <button onClick={handleReset} className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-primary/10 transition-colors disabled:opacity-50 flex-shrink-0">
+                <button
+                  onClick={handleReset}
+                  disabled={toolState === "processing"}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A1A19D] hover:text-[#E8607A] hover:bg-primary/10 transition-colors disabled:opacity-50 flex-shrink-0"
+                >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {/* Dimensions Box */}
-              <div className="bg-[#F8F8F7] border border-border rounded-xl p-4 text-center shadow-sm">
-                <p className="text-[10px] font-bold text-[#A1A19D] uppercase tracking-wider mb-1.5">Current Crop Size</p>
-                <div className="text-[18px] font-mono font-bold text-foreground">
-                  {actualW} <span className="text-[#A1A19D] font-normal mx-1">×</span> {actualH} <span className="text-[12px] font-sans text-muted-foreground font-normal ml-1">pts</span>
+              {/* Scope Selection */}
+              <div className="space-y-3">
+                <label className="text-[12px] font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#A1A19D]" /> Apply Crop To
+                </label>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={toolState === "processing" || toolState === "done"}
+                    onClick={() => handleScopeChange("current")}
+                    className={cn(
+                      "w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all",
+                      cropScope === "current"
+                        ? "border-[#E8607A] bg-primary/10 shadow-sm"
+                        : "border-border bg-card hover:border-[#E8607A]/40",
+                      (toolState === "processing" || toolState === "done") && "opacity-60 cursor-not-allowed"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all",
+                      cropScope === "current" ? "border-[#E8607A] bg-[#E8607A]" : "border-[#D1D1CE] bg-card"
+                    )}>
+                      {cropScope === "current" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className={cn("text-[13px] font-bold block", cropScope === "current" ? "text-[#E8607A]" : "text-foreground")}>
+                        Current Page Only
+                      </span>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                        Crop box applies only to Page {currentPreviewSlide + 1}
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={toolState === "processing" || toolState === "done"}
+                    onClick={() => handleScopeChange("all")}
+                    className={cn(
+                      "w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all",
+                      cropScope === "all"
+                        ? "border-[#E8607A] bg-primary/10 shadow-sm"
+                        : "border-border bg-card hover:border-[#E8607A]/40",
+                      (toolState === "processing" || toolState === "done") && "opacity-60 cursor-not-allowed"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all",
+                      cropScope === "all" ? "border-[#E8607A] bg-[#E8607A]" : "border-[#D1D1CE] bg-card"
+                    )}>
+                      {cropScope === "all" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className={cn("text-[13px] font-bold block", cropScope === "all" ? "text-[#E8607A]" : "text-foreground")}>
+                        All Pages
+                      </span>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                        Apply identical crop area across all {pdfInfo.totalPages} pages
+                      </p>
+                    </div>
+                  </button>
                 </div>
-                <button onClick={() => applyMargin(0)} className="mt-3 text-[12px] font-bold text-[#E8607A] hover:bg-primary/10 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 w-full transition-colors">
-                  <RotateCcw className="w-3.5 h-3.5" /> Reset Crop Area
+              </div>
+
+              {/* Crop Margins Precision Inputs */}
+              <div className="bg-[#F8F8F7] border border-border rounded-xl p-4 shadow-sm space-y-3">
+                <p className="text-[10px] font-bold text-[#A1A19D] uppercase tracking-wider">Crop Margins (%)</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Top Margin */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                      <span>Top</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{Math.round(currentCrop.top)}%</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100 - Math.round(100 - (currentCrop.top + currentCrop.height)) - 2}
+                      value={Math.round(currentCrop.top)}
+                      disabled={toolState === "processing" || toolState === "done"}
+                      onChange={(e) => handleMarginChange("top", parseInt(e.target.value, 10))}
+                      className="w-full h-8 px-2.5 text-[12px] font-mono font-bold bg-card border border-border rounded-lg focus:outline-none focus:border-[#E8607A] transition-colors"
+                    />
+                  </div>
+
+                  {/* Bottom Margin */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                      <span>Bottom</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{Math.round(100 - (currentCrop.top + currentCrop.height))}%</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100 - Math.round(currentCrop.top) - 2}
+                      value={Math.round(100 - (currentCrop.top + currentCrop.height))}
+                      disabled={toolState === "processing" || toolState === "done"}
+                      onChange={(e) => handleMarginChange("bottom", parseInt(e.target.value, 10))}
+                      className="w-full h-8 px-2.5 text-[12px] font-mono font-bold bg-card border border-border rounded-lg focus:outline-none focus:border-[#E8607A] transition-colors"
+                    />
+                  </div>
+
+                  {/* Left Margin */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                      <span>Left</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{Math.round(currentCrop.left)}%</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100 - Math.round(100 - (currentCrop.left + currentCrop.width)) - 2}
+                      value={Math.round(currentCrop.left)}
+                      disabled={toolState === "processing" || toolState === "done"}
+                      onChange={(e) => handleMarginChange("left", parseInt(e.target.value, 10))}
+                      className="w-full h-8 px-2.5 text-[12px] font-mono font-bold bg-card border border-border rounded-lg focus:outline-none focus:border-[#E8607A] transition-colors"
+                    />
+                  </div>
+
+                  {/* Right Margin */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                      <span>Right</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{Math.round(100 - (currentCrop.left + currentCrop.width))}%</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100 - Math.round(currentCrop.left) - 2}
+                      value={Math.round(100 - (currentCrop.left + currentCrop.width))}
+                      disabled={toolState === "processing" || toolState === "done"}
+                      onChange={(e) => handleMarginChange("right", parseInt(e.target.value, 10))}
+                      className="w-full h-8 px-2.5 text-[12px] font-mono font-bold bg-card border border-border rounded-lg focus:outline-none focus:border-[#E8607A] transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Crop Bounding Box Dimensions & Reset All */}
+              <div className="bg-[#F8F8F7] border border-border rounded-xl p-4 text-center shadow-sm space-y-3">
+                <div>
+                  <p className="text-[10px] font-bold text-[#A1A19D] uppercase tracking-wider mb-1">Crop Area Size</p>
+                  <div className="text-[18px] font-mono font-bold text-foreground">
+                    {actualW} <span className="text-[#A1A19D] font-normal mx-1">×</span> {actualH} <span className="text-[12px] font-sans text-muted-foreground font-normal ml-1">pts</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleResetAll}
+                  disabled={toolState === "processing" || toolState === "done"}
+                  className="w-full text-[12px] font-bold text-foreground bg-card border border-border hover:bg-muted py-2 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-[#E8607A]" /> Reset All Selections
                 </button>
               </div>
-
-              {/* Smart Tools */}
-              <div className="space-y-3 border-t border-border pt-5">
-                 <label className="text-[12px] font-bold text-foreground">Smart Crop</label>
-                 <button onClick={autoTrim} className="w-full h-11 bg-card border border-border hover:border-[#E8607A] hover:bg-primary/10 rounded-xl text-[13px] font-bold text-foreground flex items-center justify-center gap-2 transition-all shadow-sm group">
-                   <Maximize className="w-4 h-4 text-[#A1A19D] group-hover:text-[#E8607A] transition-colors" />
-                   Auto-Trim White Margins
-                 </button>
-                 <p className="text-[11px] text-muted-foreground text-center leading-tight px-2">Automatically detects and snaps the crop box to the content of the current page.</p>
-              </div>
-
-              {/* Margin Presets */}
-              <div className="space-y-3 border-t border-border pt-5">
-                 <label className="text-[12px] font-bold text-foreground">Margin Presets</label>
-                 <div className="grid grid-cols-2 gap-2">
-                   <button onClick={() => applyMargin(0)} className="h-10 rounded-xl border border-border bg-card hover:border-[#A1A19D] hover:bg-[#F8F8F7] text-[12px] font-bold text-foreground transition-colors">None</button>
-                   <button onClick={() => applyMargin(5)} className="h-10 rounded-xl border border-border bg-card hover:border-[#A1A19D] hover:bg-[#F8F8F7] text-[12px] font-bold text-foreground transition-colors">Small</button>
-                   <button onClick={() => applyMargin(10)} className="h-10 rounded-xl border border-border bg-card hover:border-[#A1A19D] hover:bg-[#F8F8F7] text-[12px] font-bold text-foreground transition-colors">Medium</button>
-                   <button onClick={() => applyMargin(15)} className="h-10 rounded-xl border border-border bg-card hover:border-[#A1A19D] hover:bg-[#F8F8F7] text-[12px] font-bold text-foreground transition-colors">Large</button>
-                 </div>
-              </div>
-
-              {/* Batch Apply */}
-              <div className="space-y-3 border-t border-border pt-5 pb-2">
-                 <label className="text-[12px] font-bold text-foreground">Batch Action</label>
-                 <button onClick={applyToAllPages} className="w-full h-11 bg-[#111111] hover:bg-[#333333] rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all shadow-md">
-                   <Copy className="w-4 h-4" /> Apply to All Pages
-                 </button>
-                 <p className="text-[11px] text-muted-foreground text-center leading-tight px-2">Copies the current page&apos;s crop area to the entire document.</p>
-              </div>
-
-            </div>
+            </>
           )}
         </div>
+
+        {/* Fixed Bottom Action Button */}
+        {pdfInfo && (
+          <div className="p-4 border-t border-border bg-card flex-shrink-0">
+            {toolState === "done" ? (
+              <button
+                onClick={handleDownload}
+                className="w-full h-11 bg-[#E8607A] hover:bg-[#D94D6A] text-white rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]"
+              >
+                <Download className="w-4 h-4" /> Download PDF
+              </button>
+            ) : (
+              <button
+                onClick={handleProcess}
+                disabled={!canProcess || toolState === "processing"}
+                className={cn(
+                  "w-full h-11 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]",
+                  toolState === "processing"
+                    ? "bg-[#E8607A]/80 text-white cursor-wait"
+                    : !canProcess
+                    ? "bg-muted text-[#A1A19D] cursor-not-allowed border border-border"
+                    : "bg-[#111111] hover:bg-[#333333] text-white cursor-pointer"
+                )}
+              >
+                {toolState === "processing" ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Cropping PDF...
+                  </>
+                ) : (
+                  <>
+                    <Crop className="w-4 h-4" /> Crop PDF
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Right Panel: Canvas & Action Bar */}
-      <div 
-        className="flex-1 flex flex-col relative min-h-0 h-full bg-muted"
+      {/* ── Right Panel: Large Preview Workspace ────────────────────────────── */}
+      <div
+        className="flex-1 flex flex-col relative min-h-0 h-full bg-muted overflow-hidden"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -416,153 +683,198 @@ export function CropPdfTool() {
           <div className="absolute inset-0 z-50 bg-[#E8607A]/5 backdrop-blur-[2px] border-4 border-dashed border-[#E8607A] m-4 rounded-2xl flex items-center justify-center pointer-events-none">
             <div className="bg-card px-6 py-4 rounded-xl shadow-lg flex flex-col items-center border border-[#FECDD3]">
               <Upload className="w-8 h-8 text-[#E8607A] mb-2 animate-bounce" />
-              <p className="text-[15px] font-bold text-foreground">Drop PDF here</p>
+              <p className="text-[15px] font-bold text-foreground">Drop PDF file here</p>
             </div>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 relative custom-scrollbar flex flex-col">
-          {!pdfInfo ? (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center p-8 lg:p-12 border-2 border-dashed border-[#D1D1CE] rounded-3xl hover:border-[#E8607A] hover:bg-card/50 transition-all cursor-pointer group"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-card shadow-sm border border-border flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all">
-                   <Crop className="w-7 h-7 text-[#E8607A]" />
-                </div>
-                <h3 className="text-[20px] font-bold text-foreground mb-2">Upload a PDF Document</h3>
-                <p className="text-[14px] text-muted-foreground">Interactively crop pages in real-time</p>
-              </button>
-            </div>
-          ) : toolState === "done" && resultBlobUrl ? (
-            <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full animate-slide-up">
-              <div className="w-full bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
-                <div className="w-20 h-20 bg-[#ECFDF5] rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-[#10B981]/20">
-                  <CheckCircle2 className="w-10 h-10 text-[#10B981]" />
-                </div>
-                <h2 className="text-[24px] font-bold text-foreground mb-2">PDF Cropped!</h2>
-                <p className="text-[14px] text-muted-foreground mb-8">Successfully cropped margins on {pdfInfo.totalPages} pages.</p>
+        {!pdfInfo ? (
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center p-8 lg:p-12 border-2 border-dashed border-[#D1D1CE] rounded-3xl hover:border-[#E8607A] hover:bg-card/50 transition-all cursor-pointer group"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-card shadow-sm border border-border flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all">
+                <Crop className="w-7 h-7 text-[#E8607A]" />
+              </div>
+              <h3 className="text-[20px] font-bold text-foreground mb-2">Upload a PDF Document</h3>
+              <p className="text-[14px] text-muted-foreground">Interactively crop pages with precision</p>
+            </button>
+          </div>
+        ) : toolState === "done" && resultBlobUrl ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 animate-slide-up">
+            <div className="w-full max-w-md bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
+              <div className="w-16 h-16 bg-[#ECFDF5] rounded-2xl flex items-center justify-center mx-auto mb-5 border border-[#10B981]/20 shadow-inner">
+                <CheckCircle2 className="w-8 h-8 text-[#10B981]" />
+              </div>
+              <h2 className="text-[24px] font-bold text-foreground mb-2">PDF Cropped Successfully!</h2>
+              <p className="text-[14px] text-muted-foreground mb-6">
+                Applied crop margins across {pdfInfo.totalPages} {pdfInfo.totalPages === 1 ? "page" : "pages"}.
+              </p>
+              <div className="flex items-center gap-3">
                 <button
-                   onClick={handleDownload}
-                   className="w-full h-12 bg-[#E8607A] hover:bg-[#D94D6A] text-white rounded-xl font-bold text-[15px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]"
+                  onClick={handleReset}
+                  className="flex-1 h-11 bg-card border border-border hover:bg-muted text-foreground rounded-xl font-bold text-[14px] transition-colors flex items-center justify-center gap-2"
                 >
-                   <Download className="w-5 h-5" /> Download PDF
+                  <RefreshCw className="w-4 h-4" /> Start Over
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex-1 h-11 bg-[#E8607A] hover:bg-[#D94D6A] text-white rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-colors shadow-md"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
                 </button>
               </div>
             </div>
-          ) : (
-             <div className="flex-1 w-full bg-muted/40 rounded-3xl border border-border shadow-sm overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between sticky top-0 z-20">
-                   <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2">
-                      <LayoutGrid className="w-4 h-4 text-[#A1A19D]" /> Interactive Workspace
-                   </h3>
-                   {thumbnails.length > 0 && (
-                     <div className="flex items-center gap-4">
-                        <button onClick={() => setCurrentPreviewSlide(Math.max(0, currentPreviewSlide - 1))} disabled={currentPreviewSlide === 0} className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F3F3F2] hover:bg-[#E8607A] hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-[#F3F3F2] disabled:hover:text-inherit">
-                           <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="text-[12px] font-bold text-muted-foreground min-w-[50px] text-center">
-                           {currentPreviewSlide + 1} / {pdfInfo.totalPages}
-                        </span>
-                        <button onClick={() => setCurrentPreviewSlide(Math.min(thumbnails.length - 1, currentPreviewSlide + 1))} disabled={currentPreviewSlide === thumbnails.length - 1} className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F3F3F2] hover:bg-[#E8607A] hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-[#F3F3F2] disabled:hover:text-inherit">
-                           <ChevronRight className="w-4 h-4" />
-                        </button>
-                     </div>
-                   )}
-                </div>
-
-                <div className="flex-1 overflow-hidden relative flex items-center justify-center p-8 bg-[url('/checkers.svg')] select-none">
-                   {toolState === "loading" ? (
-                      <div className="flex flex-col items-center">
-                         <Loader2 className="w-8 h-8 animate-spin text-[#E8607A] mb-4" />
-                         <p className="text-[14px] font-bold text-muted-foreground">Generating interactive preview...</p>
-                      </div>
-                   ) : thumbnails.length > 0 ? (
-                      <div 
-                        ref={containerRef}
-                        className="relative inline-block max-h-full shadow-2xl rounded-sm touch-none"
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
-                        onPointerCancel={handlePointerUp}
-                      >
-                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                         <img src={thumbnails[currentPreviewSlide].dataUrl} alt="Preview" className="max-h-[65vh] object-contain bg-card relative z-0 pointer-events-none" draggable={false} />
-                         
-                         {/* Dark Overlay (Mask) outside crop */}
-                         <div className="absolute inset-0 bg-[#111111]/40 z-10 pointer-events-none rounded-sm transition-opacity" />
-
-                         {/* Crop Area */}
-                         <div 
-                            className="absolute border border-white z-20 cursor-move group touch-none rounded-sm transition-all duration-75"
-                            style={{
-                               top: `${currentCrop.top}%`,
-                               left: `${currentCrop.left}%`,
-                               width: `${currentCrop.width}%`,
-                               height: `${currentCrop.height}%`,
-                               boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255,255,255,0.5)',
-                               clipPath: 'inset(0 -9999px -9999px -9999px)'
-                            }}
-                            onPointerDown={(e) => handlePointerDown(e)}
-                         >
-                            <div className="absolute inset-0 bg-transparent pointer-events-none" />
-
-                            {/* Grid Lines */}
-                            <div className="absolute top-1/3 left-0 w-full h-px bg-card/50 pointer-events-none border-t border-white/20" />
-                            <div className="absolute top-2/3 left-0 w-full h-px bg-card/50 pointer-events-none border-t border-white/20" />
-                            <div className="absolute left-1/3 top-0 h-full w-px bg-card/50 pointer-events-none border-l border-white/20" />
-                            <div className="absolute left-2/3 top-0 h-full w-px bg-card/50 pointer-events-none border-l border-white/20" />
-
-                            {/* Resize Handles */}
-                            {renderHandle('nw', 'top-0 left-0 w-4 h-4 -ml-2 -mt-2 cursor-nwse-resize rounded-full border-[3px] border-white')}
-                            {renderHandle('n', 'top-0 left-1/2 w-6 h-3 -ml-3 -mt-1.5 cursor-ns-resize rounded-full border-2 border-white')}
-                            {renderHandle('ne', 'top-0 right-0 w-4 h-4 -mr-2 -mt-2 cursor-nesw-resize rounded-full border-[3px] border-white')}
-                            
-                            {renderHandle('w', 'top-1/2 left-0 w-3 h-6 -mt-3 -ml-1.5 cursor-ew-resize rounded-full border-2 border-white')}
-                            {renderHandle('e', 'top-1/2 right-0 w-3 h-6 -mt-3 -mr-1.5 cursor-ew-resize rounded-full border-2 border-white')}
-                            
-                            {renderHandle('sw', 'bottom-0 left-0 w-4 h-4 -ml-2 -mb-2 cursor-nesw-resize rounded-full border-[3px] border-white')}
-                            {renderHandle('s', 'bottom-0 left-1/2 w-6 h-3 -ml-3 -mb-1.5 cursor-ns-resize rounded-full border-2 border-white')}
-                            {renderHandle('se', 'bottom-0 right-0 w-4 h-4 -mr-2 -mb-2 cursor-nwse-resize rounded-full border-[3px] border-white')}
-                         </div>
-                      </div>
-                   ) : null}
-                </div>
-             </div>
-          )}
-        </div>
-
-        {/* Action Bar */}
-        <div className="bg-card border-t border-border h-[80px] px-6 flex items-center justify-between flex-shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)] z-30 relative">
-          {errorMessage && toolState === "error" && (
-            <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up">
-              <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
-              <p className="text-[12px] font-semibold text-foreground leading-tight max-w-sm">{errorMessage}</p>
-              <button onClick={() => { setErrorMessage(null); setToolState(pdfInfo ? "ready" : "idle"); }} className="p-1 hover:bg-[#FFC5D3] rounded-lg text-[#E8607A]"><X className="w-4 h-4" /></button>
-            </div>
-          )}
-
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-3 w-full md:w-auto">
-             {toolState === "done" ? (
-               <button onClick={handleReset} className="h-11 px-5 bg-card border border-border hover:bg-muted text-foreground rounded-xl font-bold text-[14px] transition-colors flex items-center justify-center gap-2 w-full md:w-auto">
-                  <RefreshCw className="w-4 h-4" /> Reset
-               </button>
-             ) : (
-                <button
-                  onClick={handleProcess}
-                  disabled={!canProcess || toolState === "processing"}
-                  className={cn(
-                    "flex-1 md:flex-none h-11 px-8 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98] w-full md:w-auto",
-                    toolState === "processing" ? "bg-[#E8607A]/80 text-white cursor-wait" : !canProcess ? "bg-muted text-[#A1A19D] cursor-not-allowed border border-border" : "bg-[#E8607A] hover:bg-[#D94D6A] text-white"
-                  )}
-                >
-                  {toolState === "processing" ? <><Loader2 className="w-4 h-4 animate-spin" /> Cropping...</> : <><Crop className="w-4 h-4" /> Crop PDF</>}
-                </button>
-             )}
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
+            {/* Top Workspace Toolbar */}
+            <div className="px-6 py-3 border-b border-border bg-card flex flex-wrap items-center justify-between gap-3 flex-shrink-0 z-20 shadow-sm">
+              <div className="flex items-center gap-2">
+                <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4 text-[#A1A19D]" /> Page Preview Workspace
+                </h3>
+              </div>
+
+              {/* Page Navigation & Zoom Controls */}
+              <div className="flex items-center gap-4">
+                {/* Page Selector */}
+                {thumbnails.length > 0 && (
+                  <div className="flex items-center gap-2 bg-[#F8F8F7] border border-border rounded-xl px-2 py-1">
+                    <button
+                      onClick={() => setCurrentPreviewSlide((p) => Math.max(0, p - 1))}
+                      disabled={currentPreviewSlide === 0}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-card text-foreground disabled:opacity-30 transition-colors"
+                      title="Previous page"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-[12px] font-bold text-foreground min-w-[80px] text-center">
+                      Page {currentPreviewSlide + 1} of {pdfInfo.totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPreviewSlide((p) => Math.min(thumbnails.length - 1, p + 1))}
+                      disabled={currentPreviewSlide === thumbnails.length - 1}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-card text-foreground disabled:opacity-30 transition-colors"
+                      title="Next page"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Zoom Controls */}
+                <div className="flex items-center bg-[#F8F8F7] border border-border rounded-xl p-1 gap-1">
+                  <button
+                    onClick={() => setZoom((z) => Math.max(50, z - 25))}
+                    disabled={zoom <= 50}
+                    className="p-1 hover:bg-card rounded-lg text-foreground disabled:opacity-30"
+                    title="Zoom out"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[12px] font-bold w-12 text-center text-foreground">{zoom}%</span>
+                  <button
+                    onClick={() => setZoom((z) => Math.min(200, z + 25))}
+                    disabled={zoom >= 200}
+                    className="p-1 hover:bg-card rounded-lg text-foreground disabled:opacity-30"
+                    title="Zoom in"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {zoom !== 100 && (
+                  <button
+                    onClick={() => setZoom(100)}
+                    className="h-8 px-2.5 bg-[#F8F8F7] border border-border rounded-xl text-[12px] font-bold text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                    title="Reset zoom to fit"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" /> Fit
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Preview Workspace Area */}
+            <div className="flex-1 overflow-auto py-8 px-4 md:px-8 flex flex-col items-center justify-start sm:justify-center relative custom-scrollbar bg-muted/50">
+              {toolState === "loading" ? (
+                <div className="flex flex-col items-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#E8607A] mb-4" />
+                  <p className="text-[14px] font-bold text-muted-foreground">Rendering full page preview...</p>
+                </div>
+              ) : thumbnails.length > 0 ? (
+                <div
+                  style={{ width: `${zoom}%`, maxWidth: zoom === 100 ? "100%" : "none" }}
+                  className="flex items-center justify-center transition-all duration-200 py-6 px-8 my-auto"
+                >
+                  <div
+                    ref={containerRef}
+                    className="relative inline-block shadow-2xl rounded-md touch-none select-none max-h-[calc(100vh-260px)]"
+                  >
+                    {/* Rendered Full PDF Page Image */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={thumbnails[currentPreviewSlide].dataUrl}
+                      alt={`Page ${currentPreviewSlide + 1}`}
+                      className="max-h-[calc(100vh-260px)] w-auto object-contain bg-white block relative z-0 pointer-events-none rounded-md"
+                      draggable={false}
+                    />
+
+                    {/* Crop Overlay Selection Box */}
+                    <div
+                      className="absolute border border-white z-20 cursor-move group touch-none transition-all duration-75"
+                      style={{
+                        top: `${currentCrop.top}%`,
+                        left: `${currentCrop.left}%`,
+                        width: `${currentCrop.width}%`,
+                        height: `${currentCrop.height}%`,
+                        boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.6)",
+                        clipPath: "inset(-9999px)",
+                      }}
+                      onPointerDown={(e) => handlePointerDown(e)}
+                    >
+                      {/* Rule of Thirds Grid */}
+                      <div className="absolute top-1/3 left-0 w-full h-px bg-white/20 pointer-events-none" />
+                      <div className="absolute top-2/3 left-0 w-full h-px bg-white/20 pointer-events-none" />
+                      <div className="absolute left-1/3 top-0 h-full w-px bg-white/20 pointer-events-none" />
+                      <div className="absolute left-2/3 top-0 h-full w-px bg-white/20 pointer-events-none" />
+
+                      {/* Edge Drag Hit-Zones for smooth edge resizing */}
+                      <div
+                        onPointerDown={(e) => handlePointerDown(e, "n")}
+                        className="absolute top-0 left-0 w-full h-3 -mt-1.5 cursor-ns-resize z-40 touch-none"
+                      />
+                      <div
+                        onPointerDown={(e) => handlePointerDown(e, "s")}
+                        className="absolute bottom-0 left-0 w-full h-3 -mb-1.5 cursor-ns-resize z-40 touch-none"
+                      />
+                      <div
+                        onPointerDown={(e) => handlePointerDown(e, "w")}
+                        className="absolute top-0 left-0 h-full w-3 -ml-1.5 cursor-ew-resize z-40 touch-none"
+                      />
+                      <div
+                        onPointerDown={(e) => handlePointerDown(e, "e")}
+                        className="absolute top-0 right-0 h-full w-3 -mr-1.5 cursor-ew-resize z-40 touch-none"
+                      />
+
+                      {/* 8 Handles */}
+                      {renderHandle("nw", "top-0 left-0 w-4 h-4 -ml-2 -mt-2 cursor-nwse-resize rounded-full border-2 border-white shadow-md")}
+                      {renderHandle("n", "top-0 left-1/2 w-8 h-4 -ml-4 -mt-2 cursor-ns-resize rounded-full border-2 border-white shadow-md")}
+                      {renderHandle("ne", "top-0 right-0 w-4 h-4 -mr-2 -mt-2 cursor-nesw-resize rounded-full border-2 border-white shadow-md")}
+                      {renderHandle("w", "top-1/2 left-0 w-4 h-8 -mt-4 -ml-2 cursor-ew-resize rounded-full border-2 border-white shadow-md")}
+                      {renderHandle("e", "top-1/2 right-0 w-4 h-8 -mt-4 -mr-2 cursor-ew-resize rounded-full border-2 border-white shadow-md")}
+                      {renderHandle("sw", "bottom-0 left-0 w-4 h-4 -ml-2 -mb-2 cursor-nesw-resize rounded-full border-2 border-white shadow-md")}
+                      {renderHandle("s", "bottom-0 left-1/2 w-8 h-4 -ml-4 -mb-2 cursor-ns-resize rounded-full border-2 border-white shadow-md")}
+                      {renderHandle("se", "bottom-0 right-0 w-4 h-4 -mr-2 -mb-2 cursor-nwse-resize rounded-full border-2 border-white shadow-md")}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
