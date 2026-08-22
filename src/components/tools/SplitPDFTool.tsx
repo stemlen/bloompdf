@@ -7,9 +7,10 @@ import {
 } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
 import {
-  validatePDFFile, getPDFPageCount, parseCustomRanges, parseSpecificPages,
+  validatePDFFile, parseCustomRanges, parseSpecificPages,
   generateFixedRanges, splitPDF, downloadFile, type SplitRange, type GeneratedFile
 } from "@/lib/splitPdf";
+import { loadPdfForRendering, renderPageToDataURL } from "@/lib/pdfRender";
 
 type SplitMode = "custom" | "specific" | "fixed";
 type SplitState = "idle" | "splitting" | "done" | "error";
@@ -21,10 +22,16 @@ interface PDFInfo {
   totalPages: number;
 }
 
+interface Thumbnail {
+  index: number;
+  dataUrl: string;
+}
+
 export function SplitPDFTool() {
   const [pdfInfo, setPdfInfo] = useState<PDFInfo | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [parsingPdf, setParsingPdf] = useState(false);
+  const [thumbnails, setThumbnails] = useState<Thumbnail[]>([]);
   
   const [mode, setMode] = useState<SplitMode>("custom");
   const [customInput, setCustomInput] = useState("");
@@ -39,6 +46,7 @@ export function SplitPDFTool() {
   const [zoom, setZoom] = useState(100);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef(false);
 
   // ─── File handling ────────────────────────────────────────────────────────
 
@@ -55,15 +63,30 @@ export function SplitPDFTool() {
 
     setParsingPdf(true);
     setErrorMessage(null);
+    setThumbnails([]);
+    abortRef.current = false;
+
     try {
-      const totalPages = await getPDFPageCount(file);
+      const pdfDoc = await loadPdfForRendering(file);
+      const totalPages = pdfDoc.numPages;
       setPdfInfo({ file, name: file.name, size: file.size, totalPages });
       setSplitState("idle");
       
       // Set sensible defaults based on page count
       setCustomInput(`1-${Math.min(5, totalPages)}`);
       setSpecificInput("1, 3");
-      
+
+      // Render actual PDF page previews
+      for (let i = 1; i <= totalPages; i++) {
+        if (abortRef.current) break;
+        try {
+          const dataUrl = await renderPageToDataURL(pdfDoc, i, 0.4);
+          setThumbnails((prev) => [...prev, { index: i - 1, dataUrl }]);
+        } catch (renderErr) {
+          console.warn(`Page ${i} thumbnail render error:`, renderErr);
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 8));
+      }
     } catch {
       setErrorMessage("Could not read PDF. It might be corrupted or password protected.");
       setSplitState("error");
@@ -88,7 +111,9 @@ export function SplitPDFTool() {
   };
 
   const handleRemoveFile = () => {
+    abortRef.current = true;
     setPdfInfo(null);
+    setThumbnails([]);
     setSplitState("idle");
     setErrorMessage(null);
     setResults([]);
@@ -430,6 +455,7 @@ export function SplitPDFTool() {
                 {Array.from({ length: pdfInfo.totalPages }).map((_, i) => {
                   const pageNum = i + 1;
                   const isSelected = isPageSelected(pageNum);
+                  const thumb = thumbnails.find((t) => t.index === i);
                   
                   // Visual cut marker for Fixed mode
                   let showCutMarker = false;
@@ -441,42 +467,48 @@ export function SplitPDFTool() {
                   }
 
                   return (
-                    <div key={pageNum} className="relative flex flex-col gap-4">
+                    <div key={pageNum} className="relative flex flex-col gap-2 items-center">
                       <button
                         onClick={() => handlePageClick(pageNum)}
                         disabled={mode !== "specific"}
                         className={cn(
-                          "w-full aspect-[1/1.4] rounded-xl shadow-sm border p-4 flex flex-col relative overflow-hidden transition-all text-left",
+                          "w-full aspect-[1/1.414] rounded-xl shadow-sm border p-2 flex flex-col relative overflow-hidden transition-all text-left bg-card group",
                           isSelected
-                            ? "bg-card border-[#E8607A] shadow-[0_4px_16px_rgba(232,96,122,0.15)] ring-1 ring-[#E8607A]"
-                            : "bg-card border-border opacity-70",
-                          mode === "specific" && "cursor-pointer hover:border-[#E8607A]/50 hover:opacity-100 hover:shadow-md",
+                            ? "border-[#E8607A] shadow-[0_4px_16px_rgba(232,96,122,0.15)] ring-2 ring-[#E8607A]"
+                            : "border-border opacity-70 hover:opacity-100",
+                          mode === "specific" && "cursor-pointer hover:border-[#E8607A]/50 hover:shadow-md",
                           mode !== "specific" && "cursor-default"
                         )}
                       >
-                         <div className="flex gap-1 mb-2.5">
-                            <div className="w-2/3 h-1.5 bg-muted rounded-full" />
-                         </div>
-                         <div className="space-y-1.5 flex-1">
-                            <div className="w-full h-1 bg-muted rounded-full" />
-                            <div className="w-full h-1 bg-muted rounded-full" />
-                            <div className="w-4/5 h-1 bg-muted rounded-full" />
-                         </div>
-                         <div className="mt-auto flex justify-center">
-                            <span className={cn(
-                              "text-[12px] font-bold px-2 py-0.5 rounded-full",
-                              isSelected ? "bg-[#E8607A] text-white" : "bg-muted text-muted-foreground"
-                            )}>
-                              {pageNum}
-                            </span>
+                         <div className="flex-1 w-full h-full relative overflow-hidden rounded-lg bg-[#FAFAF9] flex items-center justify-center border border-border/30">
+                            {thumb?.dataUrl ? (
+                              <img
+                                src={thumb.dataUrl}
+                                alt={`Page ${pageNum}`}
+                                className="w-full h-full object-contain pointer-events-none select-none rounded"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center p-3 animate-pulse">
+                                <div className="w-12 h-1.5 bg-muted rounded mb-2" />
+                                <div className="w-16 h-1 bg-muted rounded mb-1" />
+                                <div className="w-10 h-1 bg-muted rounded" />
+                              </div>
+                            )}
                          </div>
 
                          {isSelected && mode === "specific" && (
-                           <div className="absolute top-2 right-2 w-5 h-5 bg-[#E8607A] text-white rounded-full flex items-center justify-center shadow-sm">
-                              <CheckCircle2 className="w-3 h-3" />
+                           <div className="absolute top-2 right-2 w-5 h-5 bg-[#E8607A] text-white rounded-full flex items-center justify-center shadow-md">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
                            </div>
                          )}
                       </button>
+
+                      <span className={cn(
+                        "text-[12px] font-bold px-2.5 py-0.5 rounded-full transition-colors",
+                        isSelected ? "bg-[#E8607A] text-white" : "text-muted-foreground"
+                      )}>
+                        Page {pageNum}
+                      </span>
 
                       {/* Visual Split Marker for fixed mode */}
                       {showCutMarker && (
