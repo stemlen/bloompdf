@@ -5,7 +5,7 @@
  * All processing happens entirely in the browser.
  */
 
-import { PDFDocument, degrees } from "pdf-lib";
+import { PDFDocument, degrees } from "@cantoo/pdf-lib";
 
 /** Allowed rotation angles in degrees (clockwise). */
 export type RotationAngle = 90 | 180 | 270;
@@ -41,7 +41,7 @@ export async function rotatePDFPages(
   }
 
   const arrayBuffer = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { password: "" });
   const pages = pdfDoc.getPages();
 
   for (const { pageIndex, angle } of pageRotations) {
@@ -57,5 +57,5 @@ export async function rotatePDFPages(
     page.setRotation(degrees(newRotation));
   }
 
-  return await pdfDoc.save();
+  return await pdfDoc.save({ useObjectStreams: false });
 }

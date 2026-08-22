@@ -211,7 +211,7 @@ export function AddPageNumbersTool() {
     setErrorMessage(null);
 
     try {
-      const pdfDoc = await PDFDocument.load(pdfBytes);
+      const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
       const pages = pdfDoc.getPages();
       const numPages = pages.length;
 

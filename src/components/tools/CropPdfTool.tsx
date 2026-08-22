@@ -318,7 +318,7 @@ export function CropPdfTool() {
     setErrorMessage(null);
 
     try {
-      const pdfDoc = await PDFDocument.load(pdfBytes);
+      const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
       const pages = pdfDoc.getPages();
 
       for (let i = 0; i < pages.length; i++) {

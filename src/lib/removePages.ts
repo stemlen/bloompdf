@@ -1,8 +1,8 @@
 /**
  * removePages.ts
- * Core logic for removing pages from a PDF document using pdf-lib.
+ * Core logic for removing pages from a PDF document using @cantoo/pdf-lib.
  */
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument } from '@cantoo/pdf-lib';
 
 /**
  * Removes the specified page indices from the PDF document and returns the new PDF bytes.
@@ -16,7 +16,7 @@ export async function removePagesFromPDF(
   pagesToRemoveIndices: number[]
 ): Promise<Uint8Array> {
   const arrayBuffer = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { password: "" });
   
   // Sort indices in descending order so removing a page doesn't shift the indices 
   // of the remaining pages we want to remove.
@@ -26,5 +26,5 @@ export async function removePagesFromPDF(
     pdfDoc.removePage(index);
   }
   
-  return await pdfDoc.save();
+  return await pdfDoc.save({ useObjectStreams: false });
 }

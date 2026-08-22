@@ -4,7 +4,7 @@
  * Supports reordering, rotating, deleting, and inserting blank pages.
  */
 
-import { PDFDocument, degrees, PageSizes } from "pdf-lib";
+import { PDFDocument, degrees, PageSizes } from "@cantoo/pdf-lib";
 
 export type RotationAngle = 0 | 90 | 180 | 270;
 
@@ -35,7 +35,7 @@ export async function organizePDF(
   }
 
   const arrayBuffer = await file.arrayBuffer();
-  const sourcePdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const sourcePdf = await PDFDocument.load(arrayBuffer, { password: "" });
   const sourcePages = sourcePdf.getPages();
   
   const newPdf = await PDFDocument.create();
