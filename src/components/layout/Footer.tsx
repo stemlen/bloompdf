@@ -90,6 +90,7 @@ export function Footer() {
               <h4 className="text-[14px] font-bold text-foreground mb-4">Support</h4>
               <ul className="space-y-3">
                 {[
+                  { label: "Blog & Guides", href: "/blog" },
                   { label: "Help Center", href: "/#faq" },
                   { label: "FAQs", href: "/#faq" },
                   { label: "All Tools", href: "/" },
@@ -129,8 +130,8 @@ export function Footer() {
                 { label: "About BloomPDF", href: "/about", external: false },
                 { label: "Stemlen.com", href: "https://stemlen.com", external: true },
                 { label: "Terms & Conditions", href: "/terms-and-conditions", external: false },
-                { label: "Favorites", href: "/#favorites", external: false },
-                { label: "Recent Tools", href: "/#recent", external: false },
+                { label: "Privacy Policy", href: "/privacy-policy", external: false },
+                { label: "Contact Us", href: "/contact", external: false },
               ].map((item) => (
                 <li key={item.label}>
                   {item.external ? (

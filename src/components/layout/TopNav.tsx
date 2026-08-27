@@ -385,6 +385,18 @@ export function TopNav() {
               >
                 About Us
               </Link>
+              <Link
+                href="/blog"
+                className="px-3.5 py-2 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-150"
+              >
+                Blog
+              </Link>
+              <Link
+                href="/contact"
+                className="px-3.5 py-2 rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-150"
+              >
+                Contact
+              </Link>
             </div>
 
             {/* ── Search bar (desktop) ─────────────────────────── */}
