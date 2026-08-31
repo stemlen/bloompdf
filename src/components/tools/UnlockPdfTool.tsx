@@ -1,23 +1,33 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Unlock, AlertCircle, Loader2, Download, Upload, ShieldCheck, Eye, EyeOff, File
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { unlockPDF, isPDFEncrypted } from "@/lib/unlockPdf";
 
 export function UnlockPdfTool() {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
+  const [isEncrypted, setIsEncrypted] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successFile, setSuccessFile] = useState<{ url: string, name: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (uploadedFile: File) => {
-    if (uploadedFile.type !== "application/pdf") {
+  useEffect(() => {
+    return () => {
+      if (successFile?.url) {
+        URL.revokeObjectURL(successFile.url);
+      }
+    };
+  }, [successFile]);
+
+  const handleFileUpload = async (uploadedFile: File) => {
+    if (uploadedFile.type !== "application/pdf" && !uploadedFile.name.toLowerCase().endsWith(".pdf")) {
       setError("Please upload a valid PDF file.");
       return;
     }
@@ -25,6 +35,14 @@ export function UnlockPdfTool() {
     setError(null);
     setSuccessFile(null);
     setPassword("");
+    
+    // Check encryption status
+    try {
+      const encrypted = await isPDFEncrypted(uploadedFile);
+      setIsEncrypted(encrypted);
+    } catch {
+      setIsEncrypted(null);
+    }
   };
 
   const handleUnlock = async () => {
@@ -38,27 +56,45 @@ export function UnlockPdfTool() {
     setError(null);
     
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("password", password);
+      // 1. Try instant client-side decryption first
+      try {
+        const decryptedBytes = await unlockPDF(file, password);
+        const blob = new Blob([decryptedBytes as unknown as BlobPart], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        setSuccessFile({
+          url,
+          name: file.name.replace(/\.pdf$/i, "_unlocked.pdf")
+        });
+        return;
+      } catch (clientErr: any) {
+        const errMsg = clientErr?.message?.toLowerCase() || "";
+        // If it's a definite incorrect password, report it directly
+        if (errMsg.includes("incorrect password") || errMsg.includes("password incorrect")) {
+          throw clientErr;
+        }
 
-      const res = await fetch("/api/unlock-pdf", {
-        method: "POST",
-        body: formData,
-      });
+        // Otherwise attempt server-side fallback
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("password", password);
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to unlock PDF. Please check the password and try again.");
+        const res = await fetch("/api/unlock-pdf", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to unlock PDF. Please check the password and try again.");
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setSuccessFile({
+          url,
+          name: file.name.replace(/\.pdf$/i, "_unlocked.pdf")
+        });
       }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setSuccessFile({
-        url,
-        name: file.name.replace(/\.pdf$/i, "_unlocked.pdf")
-      });
-      
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -187,6 +223,11 @@ export function UnlockPdfTool() {
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !unlocking && file && password) {
+                      handleUnlock();
+                    }
+                  }}
                   className="w-full h-12 pl-4 pr-12 border border-[#E5E5E3] rounded-xl text-[14px] focus:outline-none focus:border-[#E8607A] bg-card transition-colors"
                 />
                 <button 
@@ -204,11 +245,11 @@ export function UnlockPdfTool() {
             <div className="bg-muted rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-3 text-[13px] font-medium text-foreground">
                 <AlertCircle className="w-4 h-4 text-[#E8607A]" />
-                Password Protected: {file ? "Yes" : "Unknown"}
+                Password Protected: {!file ? "Waiting for file" : isEncrypted === true ? "Yes (Protected)" : isEncrypted === false ? "No (Not Protected)" : "Protected"}
               </div>
               <div className="flex items-center gap-3 text-[13px] font-medium text-foreground">
                 <ShieldCheck className="w-4 h-4 text-[#10B981]" />
-                {file ? "Ready for Unlocking" : "Waiting for file"}
+                {file ? (password ? "Ready for Unlocking" : "Enter password to proceed") : "Waiting for file"}
               </div>
             </div>
           </div>
