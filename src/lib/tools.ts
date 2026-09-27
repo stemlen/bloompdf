@@ -36,6 +36,11 @@ export interface Tool {
   outputFormat: string;
   layoutType?: "workspace" | "form";
   externalUrl?: string;
+  /**
+   * Listed but not implemented yet: the tool page shows a "coming soon"
+   * notice, is excluded from sitemap.xml and is marked noindex.
+   */
+  comingSoon?: boolean;
 }
 
 export const tools: Tool[] = [
@@ -432,6 +437,7 @@ export const tools: Tool[] = [
   // ── Convert from PDF ──────────────────────────────────────────────────────
   {
     slug: "pdf-to-jpg",
+    comingSoon: true,
     name: "PDF to JPG",
     shortName: "PDF → JPG",
     description: "Convert PDF pages to JPG images",
@@ -468,6 +474,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "pdf-to-word",
+    comingSoon: true,
     name: "PDF to Word",
     shortName: "PDF → Word",
     description: "Convert PDF files to editable Word documents",
@@ -483,6 +490,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "pdf-to-powerpoint",
+    comingSoon: true,
     name: "PDF to PowerPoint",
     shortName: "PDF → PPT",
     description: "Convert PDF to editable PowerPoint slides",
@@ -498,6 +506,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "pdf-to-excel",
+    comingSoon: true,
     name: "PDF to Excel",
     shortName: "PDF → Excel",
     description: "Convert PDF tables to Excel spreadsheets",
@@ -513,6 +522,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "pdf-to-pdfa",
+    comingSoon: true,
     name: "PDF to PDF/A",
     shortName: "PDF → PDF/A",
     description: "Convert PDF to PDF/A for long-term archiving",
@@ -747,6 +757,7 @@ export const tools: Tool[] = [
   // ── Security ──────────────────────────────────────────────────────────────
   {
     slug: "pdf-forms",
+    comingSoon: true,
     name: "PDF Forms",
     shortName: "Forms",
     description: "Fill, create, and manage interactive PDF forms",

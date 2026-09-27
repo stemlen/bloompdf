@@ -32,7 +32,6 @@ import { WordToPdfTool } from "./WordToPdfTool";
 import { ExcelToPdfTool } from "./ExcelToPdfTool";
 import { OCRPDFTool } from "./OCRPDFTool";
 import { RepairPDFTool } from "./RepairPDFTool";
-import { FormsTool } from "./FormsTool";
 import { MarkdownToPdfTool } from "./MarkdownToPdfTool";
 import { TextToPdfTool } from "./TextToPdfTool";
 import { ProtectPdfTool } from "./ProtectPdfTool";
@@ -66,29 +65,30 @@ export function ToolShell({ tool }: ToolShellProps) {
   const fav = isFavorite(tool.slug);
 
   const renderTool = () => {
-    if (tool.slug === "merge-pdf") return <MergePDFTool />;
-    if (tool.slug === "compress-pdf") return <CompressPDFTool />;
-    if (tool.slug === "jpg-to-pdf") return <ImageToPDFTool />;
-    if (tool.slug === "split-pdf") return <SplitPDFTool />;
-    if (tool.slug === "remove-pages") return <RemovePagesTool />;
-    if (tool.slug === "rotate-pdf") return <RotatePDFTool />;
-    if (tool.slug === "extract-pages") return <ExtractPagesTool />;
-    if (tool.slug === "organize-pdf") return <OrganizePDFTool />;
-    if (tool.slug === "add-page-numbers") return <AddPageNumbersTool />;
-    if (tool.slug === "add-watermark") return <AddWatermarkTool />;
-    if (tool.slug === "crop-pdf") return <CropPdfTool />;
-    if (tool.slug === "scan-to-pdf") return <ScanToPDFTool />;
-    if (tool.slug === "html-to-pdf") return <HtmlToPdfTool />;
-    if (tool.slug === "powerpoint-to-pdf") return <PptxToPdfTool />;
-    if (tool.slug === "word-to-pdf") return <WordToPdfTool />;
-    if (tool.slug === "excel-to-pdf") return <ExcelToPdfTool />;
-    if (tool.slug === "ocr-pdf") return <OCRPDFTool />;
-    if (tool.slug === "repair-pdf") return <RepairPDFTool />;
-    if (tool.slug === "pdf-forms") return <FormsTool />;
-    if (tool.slug === "markdown-to-pdf") return <MarkdownToPdfTool />;
-    if (tool.slug === "text-to-pdf") return <TextToPdfTool />;
-    if (tool.slug === "protect-pdf") return <ProtectPdfTool />;
-    if (tool.slug === "unlock-pdf") return <UnlockPdfTool />;
+    if (!tool.comingSoon) {
+      if (tool.slug === "merge-pdf") return <MergePDFTool />;
+      if (tool.slug === "compress-pdf") return <CompressPDFTool />;
+      if (tool.slug === "jpg-to-pdf") return <ImageToPDFTool />;
+      if (tool.slug === "split-pdf") return <SplitPDFTool />;
+      if (tool.slug === "remove-pages") return <RemovePagesTool />;
+      if (tool.slug === "rotate-pdf") return <RotatePDFTool />;
+      if (tool.slug === "extract-pages") return <ExtractPagesTool />;
+      if (tool.slug === "organize-pdf") return <OrganizePDFTool />;
+      if (tool.slug === "add-page-numbers") return <AddPageNumbersTool />;
+      if (tool.slug === "add-watermark") return <AddWatermarkTool />;
+      if (tool.slug === "crop-pdf") return <CropPdfTool />;
+      if (tool.slug === "scan-to-pdf") return <ScanToPDFTool />;
+      if (tool.slug === "html-to-pdf") return <HtmlToPdfTool />;
+      if (tool.slug === "powerpoint-to-pdf") return <PptxToPdfTool />;
+      if (tool.slug === "word-to-pdf") return <WordToPdfTool />;
+      if (tool.slug === "excel-to-pdf") return <ExcelToPdfTool />;
+      if (tool.slug === "ocr-pdf") return <OCRPDFTool />;
+      if (tool.slug === "repair-pdf") return <RepairPDFTool />;
+      if (tool.slug === "markdown-to-pdf") return <MarkdownToPdfTool />;
+      if (tool.slug === "text-to-pdf") return <TextToPdfTool />;
+      if (tool.slug === "protect-pdf") return <ProtectPdfTool />;
+      if (tool.slug === "unlock-pdf") return <UnlockPdfTool />;
+    }
 
     // No implementation yet: say so honestly instead of faking a
     // "processing complete" flow that never produces a file.

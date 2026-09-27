@@ -56,13 +56,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "split-pdf",
     "compress-pdf",
     "edit-pdf",
-    "pdf-to-word",
     "word-to-pdf",
     "ocr-pdf",
     "protect-pdf",
   ];
 
-  const toolPages: MetadataRoute.Sitemap = tools.map((tool) => {
+  // "Coming soon" tools have no implementation yet, so they are left out.
+  const toolPages: MetadataRoute.Sitemap = tools.filter((tool) => !tool.comingSoon).map((tool) => {
     const isHighPriority = highPrioritySlugs.includes(tool.slug);
     return {
       url: `${baseUrl}/tools/${tool.slug}`,
