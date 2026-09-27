@@ -1,10 +1,12 @@
 /**
  * markdownPdfConverter.ts
- * 100% Client-side Markdown to PDF conversion using pdf-lib, Mermaid SVG rendering,
- * and high-DPI canvas rendering. Runs entirely in the browser with zero server dependencies.
+ * 100% client-side Markdown to PDF conversion. The markdown is laid out by the
+ * browser in a hidden container, then drawn into the PDF as real, selectable
+ * text (see markdownPdfVector.ts); Mermaid diagrams and images are embedded as
+ * images. Runs entirely in the browser with zero server dependencies.
  */
 
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import {
   renderMarkdownToHtml,
   getThemeStyles,
@@ -14,6 +16,7 @@ import {
   type PageMargin,
 } from "./markdownStyles";
 import { renderMermaidInElement } from "./mermaidRenderer";
+import { renderMarkdownDomToPdf, hexToRgb } from "./markdownPdfVector";
 
 // ─── Types & Options ────────────────────────────────────────────────────────
 
@@ -75,6 +78,33 @@ async function waitForImages(element: HTMLElement): Promise<void> {
 
 // ─── Main Conversion Function ───────────────────────────────────────────────
 
+interface PdfGeometry {
+  pageW: number;
+  pageH: number;
+  marginPt: number;
+  usableWidthPt: number;
+  usableHeightPt: number;
+  /** PDF y of the bottom edge of the content box. */
+  contentBottom: number;
+  theme: MarkdownTheme;
+  bgColor: string;
+  showPageNumbers: boolean;
+  headerTitle: string;
+}
+
+function drawPageDecorations(page: PDFPage, index: number, total: number, g: PdfGeometry, font: PDFFont): void {
+  const color = g.theme === "obsidian" ? rgb(0.6, 0.65, 0.7) : rgb(0.5, 0.5, 0.5);
+  if (g.headerTitle) {
+    const title = g.headerTitle.replace(/[^\x20-\x7e\u00a0-\u00ff]/g, "?");
+    page.drawText(title, { x: g.marginPt, y: g.pageH - g.marginPt / 2 - 10, size: 9, color, font });
+  }
+  if (g.showPageNumbers) {
+    const pageText = `Page ${index + 1} of ${total}`;
+    const x = g.pageW - Math.max(g.marginPt, 20) - font.widthOfTextAtSize(pageText, 9);
+    page.drawText(pageText, { x, y: g.marginPt / 2 + 5, size: 9, color, font });
+  }
+}
+
 export async function convertMarkdownToPdfBlob(
   markdown: string,
   options: MarkdownPdfOptions = {}
@@ -105,17 +135,30 @@ export async function convertMarkdownToPdfBlob(
 
   const marginPt = MARGIN_PT[margins] ?? MARGIN_PT.medium;
   const headerFooterPt = (headerTitle ? 25 : 0) + (showPageNumbers ? 25 : 0);
-  
+
   // Usable area in points
   const usableWidthPt = Math.max(200, pageW - marginPt * 2);
   const usableHeightPt = Math.max(200, pageH - marginPt * 2 - headerFooterPt);
 
+  const bgColor = theme === "obsidian" ? "#0a0b0e" : theme === "crimson" ? "#fcfbf9" : "#ffffff";
+  const geometry: PdfGeometry = {
+    pageW,
+    pageH,
+    marginPt,
+    usableWidthPt,
+    usableHeightPt,
+    contentBottom: marginPt + (showPageNumbers ? 20 : 0),
+    theme,
+    bgColor,
+    showPageNumbers,
+    headerTitle,
+  };
+
   onProgress?.(25, "Rendering visual diagrams...");
 
-  // High-DPI Scale (2x for crisp print quality)
-  const scale = 2;
   const cssWidthPx = usableWidthPt * (96 / 72); // convert pt to standard CSS px
   const cssHeightPx = usableHeightPt * (96 / 72);
+  const maxMediaHeightPx = Math.floor(cssHeightPx * 0.9);
 
   // 1. Create a hidden render container in the DOM to measure and render cleanly
   const container = document.createElement("div");
@@ -128,10 +171,11 @@ export async function convertMarkdownToPdfBlob(
   container.style.padding = "0";
   container.style.margin = "0";
   container.style.overflow = "visible";
-  container.style.background = theme === "obsidian" ? "#0a0b0e" : "#ffffff";
+  container.style.background = bgColor;
   container.style.zIndex = "-1000";
 
-  // Inject styles & markdown
+  // Inject styles & markdown. The PDF-only rules wrap long code lines and
+  // cap image/diagram height so nothing is clipped or cut across pages.
   container.innerHTML = `
     <style>
       ${themeCss}
@@ -141,6 +185,14 @@ export async function convertMarkdownToPdfBlob(
         padding: 0 !important;
         margin: 0 !important;
       }
+      .markdown-body pre.code-block,
+      .markdown-body pre.code-block > code {
+        white-space: pre-wrap !important;
+        overflow-wrap: anywhere !important;
+      }
+      .markdown-body th, .markdown-body td { overflow-wrap: anywhere; }
+      .markdown-body img { max-height: ${maxMediaHeightPx}px; width: auto; }
+      .markdown-body .mermaid-svg-wrapper svg { max-height: ${maxMediaHeightPx}px; }
     </style>
     <div class="markdown-body">
       ${htmlContent}
@@ -153,163 +205,35 @@ export async function convertMarkdownToPdfBlob(
     // Render Mermaid diagrams into SVGs
     await renderMermaidInElement(container, theme);
     await waitForImages(container);
+    if (document.fonts?.ready) await document.fonts.ready;
     // Give browser brief tick to paint SVG dimensions
     await new Promise((r) => setTimeout(r, 100));
 
     const markdownBody = container.querySelector(".markdown-body") as HTMLElement;
-    const totalContentHeightPx = Math.max(
-      markdownBody ? markdownBody.scrollHeight : 100,
-      markdownBody ? markdownBody.offsetHeight : 100,
-      100
-    );
 
-    onProgress?.(45, "Rasterizing document pages...");
+    onProgress?.(50, "Laying out text...");
 
-    // 2. Build a valid SVG foreignObject covering the full content height with all rendered SVGs
-    const bgColor = theme === "obsidian" ? "#0a0b0e" : theme === "crimson" ? "#fcfbf9" : "#ffffff";
-
-    let serializedBodyHtml = "";
+    let pdfDoc: PDFDocument;
     try {
-      if (typeof XMLSerializer !== "undefined" && markdownBody) {
-        const serializer = new XMLSerializer();
-        serializedBodyHtml = serializer.serializeToString(markdownBody);
-      } else {
-        serializedBodyHtml = markdownBody ? markdownBody.innerHTML : htmlContent;
-      }
-    } catch {
-      serializedBodyHtml = markdownBody ? markdownBody.innerHTML : htmlContent;
-    }
-
-    // Sanitize any named HTML entities that break strict SVG XML parsers
-    serializedBodyHtml = serializedBodyHtml
-      .replace(/&nbsp;/g, "&#160;")
-      .replace(/&mdash;/g, "&#8212;")
-      .replace(/&ndash;/g, "&#8211;")
-      .replace(/&bull;/g, "&#8226;")
-      .replace(/&copy;/g, "&#169;")
-      .replace(/&reg;/g, "&#174;")
-      .replace(/&trade;/g, "&#8482;")
-      .replace(/&hellip;/g, "&#8230;")
-      .replace(/&ldquo;/g, "&#8220;")
-      .replace(/&rdquo;/g, "&#8221;")
-      .replace(/&lsquo;/g, "&#8216;")
-      .replace(/&rsquo;/g, "&#8217;");
-
-    // The theme CSS contains characters such as "&" (e.g. in comments) that are
-    // illegal in XML text, so it is wrapped in CDATA; otherwise the SVG fails
-    // to parse and export silently fell back to the print dialog.
-    const svgString = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${cssWidthPx}" height="${totalContentHeightPx}">
-        <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml" style="background: ${bgColor}; width: ${cssWidthPx}px; min-height: ${totalContentHeightPx}px;">
-            <style><![CDATA[
-              ${themeCss.replace(/\]\]>/g, "] ]>")}
-              *, *::before, *::after { box-sizing: border-box; }
-              body { margin: 0; padding: 0; background: ${bgColor}; }
-              .markdown-body { width: ${cssWidthPx}px !important; padding: 0 !important; margin: 0 !important; }
-            ]]></style>
-            ${serializedBodyHtml.startsWith("<div") ? serializedBodyHtml : `<div class="markdown-body">${serializedBodyHtml}</div>`}
-          </div>
-        </foreignObject>
-      </svg>
-    `;
-
-    // Load the SVG from a data: URL. A blob: URL containing <foreignObject>
-    // taints the canvas in Chromium, which made toDataURL() throw and the
-    // export always fell back to the print dialog.
-    const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
-
-    const fullImg = new Image();
-    await new Promise<void>((resolve, reject) => {
-      fullImg.onload = () => resolve();
-      fullImg.onerror = () => reject(new Error("Failed to render SVG image for PDF."));
-      fullImg.src = svgUrl;
-    });
-
-    onProgress?.(70, "Generating PDF pages...");
-
-    // 4. Calculate smart page slices
-    // Pages are sliced straight from the SVG image instead of a single
-    // full-height master canvas, which exceeded browser canvas size limits
-    // (~16k px at 2x) on long documents and produced blank pages.
-    const pageSliceHeightPx = cssHeightPx * scale;
-    const pageCanvasWidth = Math.round(cssWidthPx * scale);
-    const totalCanvasHeight = totalContentHeightPx * scale;
-    const estimatedPages = Math.max(1, Math.ceil(totalCanvasHeight / pageSliceHeightPx));
-
-    // Create PDF Document
-    const pdfDoc = await PDFDocument.create();
-
-    // Slicing loop
-    let currentY = 0;
-    let pageIndex = 0;
-
-    while (currentY < totalCanvasHeight) {
-      pageIndex++;
-      const currentSliceH = Math.min(pageSliceHeightPx, totalCanvasHeight - currentY);
-
-      // Create a canvas for this page slice
-      const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = pageCanvasWidth;
-      pageCanvas.height = pageSliceHeightPx;
-      const pageCtx = pageCanvas.getContext("2d");
-      if (!pageCtx) break;
-
-      // Fill background
-      pageCtx.fillStyle = bgColor;
-      pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-
-      // Draw the content slice (source coordinates are in CSS px)
-      pageCtx.drawImage(
-        fullImg,
-        0, currentY / scale, cssWidthPx, currentSliceH / scale,
-        0, 0, pageCanvasWidth, currentSliceH
-      );
-
-      // Convert page canvas to JPEG image bytes
-      const pageDataUrl = pageCanvas.toDataURL("image/jpeg", 0.95);
-      const pageJpgBytes = dataUrlToUint8Array(pageDataUrl);
-      const embeddedJpg = await pdfDoc.embedJpg(pageJpgBytes);
-
-      // Add Page to PDF
-      const pdfPage = pdfDoc.addPage([pageW, pageH]);
-
-      // Calculate placement
-      const drawX = marginPt;
-      const drawY = marginPt + (showPageNumbers ? 20 : 0);
-      const drawW = usableWidthPt;
-      const drawH = usableHeightPt;
-
-      // Draw content image
-      pdfPage.drawImage(embeddedJpg, {
-        x: drawX,
-        y: drawY,
-        width: drawW,
-        height: drawH,
+      // 2. Real, selectable text drawn from the laid-out DOM.
+      pdfDoc = await PDFDocument.create();
+      const decorFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const result = await renderMarkdownDomToPdf({
+        pdfDoc,
+        root: markdownBody,
+        pageSize: [pageW, pageH],
+        contentLeft: marginPt,
+        contentTop: geometry.contentBottom + usableHeightPt,
+        contentWidth: usableWidthPt,
+        contentHeight: usableHeightPt,
+        pageBackground: hexToRgb(bgColor),
+        decorate: (page, i, total) => drawPageDecorations(page, i, total, geometry, decorFont),
       });
-
-      // Draw Optional Header
-      if (headerTitle) {
-        pdfPage.drawText(headerTitle, {
-          x: marginPt,
-          y: pageH - marginPt / 2 - 10,
-          size: 9,
-          color: theme === "obsidian" ? rgb(0.6, 0.65, 0.7) : rgb(0.5, 0.5, 0.5),
-        });
-      }
-
-      // Draw Optional Page Number Footer
-      if (showPageNumbers) {
-        const pageText = `Page ${pageIndex} of ${estimatedPages}`;
-        pdfPage.drawText(pageText, {
-          x: pageW - marginPt - (pageText.length * 5),
-          y: marginPt / 2 + 5,
-          size: 9,
-          color: theme === "obsidian" ? rgb(0.6, 0.65, 0.7) : rgb(0.5, 0.5, 0.5),
-        });
-      }
-
-      currentY += pageSliceHeightPx;
+      if (result.warnings.length) console.warn("Markdown PDF:", result.warnings.join("; "));
+    } catch (vectorErr) {
+      // 3. Fallback: page images (text not selectable).
+      console.warn("Text PDF export failed, falling back to image pages:", vectorErr);
+      pdfDoc = await rasterizeToPdf(markdownBody, htmlContent, themeCss, cssWidthPx, cssHeightPx, geometry, onProgress);
     }
 
     onProgress?.(95, "Finalizing PDF...");
@@ -328,6 +252,107 @@ export async function convertMarkdownToPdfBlob(
       container.parentNode.removeChild(container);
     }
   }
+}
+
+/** Image-based export (previous behaviour), kept as a fallback. */
+async function rasterizeToPdf(
+  markdownBody: HTMLElement,
+  htmlContent: string,
+  themeCss: string,
+  cssWidthPx: number,
+  cssHeightPx: number,
+  g: PdfGeometry,
+  onProgress?: (progress: number, stage: string) => void
+): Promise<PDFDocument> {
+  const scale = 2;
+  const bgColor = g.bgColor;
+  const totalContentHeightPx = Math.max(markdownBody ? markdownBody.scrollHeight : 100, markdownBody ? markdownBody.offsetHeight : 100, 100);
+
+  onProgress?.(60, "Rasterizing document pages...");
+
+  let serializedBodyHtml = "";
+  try {
+    serializedBodyHtml = typeof XMLSerializer !== "undefined" && markdownBody
+      ? new XMLSerializer().serializeToString(markdownBody)
+      : markdownBody ? markdownBody.innerHTML : htmlContent;
+  } catch {
+    serializedBodyHtml = markdownBody ? markdownBody.innerHTML : htmlContent;
+  }
+
+  // Sanitize any named HTML entities that break strict SVG XML parsers
+  serializedBodyHtml = serializedBodyHtml
+    .replace(/&nbsp;/g, "&#160;")
+    .replace(/&mdash;/g, "&#8212;")
+    .replace(/&ndash;/g, "&#8211;")
+    .replace(/&bull;/g, "&#8226;")
+    .replace(/&copy;/g, "&#169;")
+    .replace(/&reg;/g, "&#174;")
+    .replace(/&trade;/g, "&#8482;")
+    .replace(/&hellip;/g, "&#8230;")
+    .replace(/&ldquo;/g, "&#8220;")
+    .replace(/&rdquo;/g, "&#8221;")
+    .replace(/&lsquo;/g, "&#8216;")
+    .replace(/&rsquo;/g, "&#8217;");
+
+  // The theme CSS contains characters such as "&" that are illegal in XML
+  // text, so it is wrapped in CDATA. The wrapper carries the
+  // "markdown-container" class because the theme variables live there.
+  const svgString = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${cssWidthPx}" height="${totalContentHeightPx}">
+      <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="markdown-container" style="background: ${bgColor}; width: ${cssWidthPx}px; min-height: ${totalContentHeightPx}px;">
+          <style><![CDATA[
+            ${themeCss.replace(/\]\]>/g, "] ]>")}
+            *, *::before, *::after { box-sizing: border-box; }
+            body { margin: 0; padding: 0; background: ${bgColor}; }
+            .markdown-body { width: ${cssWidthPx}px !important; padding: 0 !important; margin: 0 !important; }
+          ]]></style>
+          ${serializedBodyHtml.startsWith("<div") ? serializedBodyHtml : `<div class="markdown-body">${serializedBodyHtml}</div>`}
+        </div>
+      </foreignObject>
+    </svg>
+  `;
+
+  // A data: URL (not blob:) so the canvas is not tainted in Chromium.
+  const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
+  const fullImg = new Image();
+  await new Promise<void>((resolve, reject) => {
+    fullImg.onload = () => resolve();
+    fullImg.onerror = () => reject(new Error("Failed to render SVG image for PDF."));
+    fullImg.src = svgUrl;
+  });
+
+  // Pages are sliced straight from the SVG image instead of one full-height
+  // canvas, which exceeded browser canvas limits on long documents.
+  const pageSliceHeightPx = cssHeightPx * scale;
+  const pageCanvasWidth = Math.round(cssWidthPx * scale);
+  const totalCanvasHeight = totalContentHeightPx * scale;
+  const estimatedPages = Math.max(1, Math.ceil(totalCanvasHeight / pageSliceHeightPx));
+
+  const pdfDoc = await PDFDocument.create();
+  const decorFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  let currentY = 0;
+  let pageIndex = 0;
+  while (currentY < totalCanvasHeight) {
+    const currentSliceH = Math.min(pageSliceHeightPx, totalCanvasHeight - currentY);
+    const pageCanvas = document.createElement("canvas");
+    pageCanvas.width = pageCanvasWidth;
+    pageCanvas.height = pageSliceHeightPx;
+    const pageCtx = pageCanvas.getContext("2d");
+    if (!pageCtx) break;
+    pageCtx.fillStyle = bgColor;
+    pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+    pageCtx.drawImage(fullImg, 0, currentY / scale, cssWidthPx, currentSliceH / scale, 0, 0, pageCanvasWidth, currentSliceH);
+
+    const embeddedJpg = await pdfDoc.embedJpg(dataUrlToUint8Array(pageCanvas.toDataURL("image/jpeg", 0.95)));
+    const pdfPage = pdfDoc.addPage([g.pageW, g.pageH]);
+    pdfPage.drawImage(embeddedJpg, { x: g.marginPt, y: g.contentBottom, width: g.usableWidthPt, height: g.usableHeightPt });
+    drawPageDecorations(pdfPage, pageIndex, estimatedPages, g, decorFont);
+
+    pageIndex++;
+    currentY += pageSliceHeightPx;
+  }
+  return pdfDoc;
 }
 
 // ─── Browser Native Print / Save Vector PDF ─────────────────────────────────
