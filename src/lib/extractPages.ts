@@ -5,6 +5,7 @@
  */
 
 import { PDFDocument } from "@cantoo/pdf-lib";
+import { buildPdfWithPages } from "./pdfPageCopy";
 
 export interface SplitRange {
   start: number; // 1-indexed inclusive
@@ -108,23 +109,16 @@ export async function extractPages(
 
   if (merge) {
     const pageNums = expandRangesToPages(ranges);
-    const pageSet = new Set(pageNums);
     const doc = await loadDoc(arrayBuffer, "");
     const totalPages = doc.getPageCount();
+    // Keep document order and drop duplicates / out-of-range numbers, which is
+    // what the previous remove-the-rest approach produced.
+    const indices = [...new Set(pageNums)]
+      .filter((n) => n >= 1 && n <= totalPages)
+      .sort((a, b) => a - b)
+      .map((n) => n - 1);
 
-    const pagesToRemove: number[] = [];
-    for (let p = 0; p < totalPages; p++) {
-      if (!pageSet.has(p + 1)) {
-        pagesToRemove.push(p);
-      }
-    }
-
-    pagesToRemove.sort((a, b) => b - a);
-    for (const pageIdx of pagesToRemove) {
-      doc.removePage(pageIdx);
-    }
-
-    const bytes = await doc.save({ useObjectStreams: false });
+    const bytes = await buildPdfWithPages(doc, indices);
     const label =
       pageNums.length === 1
         ? `p${pageNums[0]}`
@@ -141,26 +135,15 @@ export async function extractPages(
     ];
   } else {
     const results: GeneratedFile[] = [];
+    const doc = await loadDoc(arrayBuffer, "");
+    const totalPages = doc.getPageCount();
 
     for (let i = 0; i < ranges.length; i++) {
       const { start, end } = ranges[i];
-      const doc = await loadDoc(arrayBuffer, "");
-      const totalPages = doc.getPageCount();
+      const indices: number[] = [];
+      for (let p = Math.max(1, start); p <= Math.min(end, totalPages); p++) indices.push(p - 1);
 
-      const pagesToRemove: number[] = [];
-      for (let p = 0; p < totalPages; p++) {
-        const pageNum = p + 1;
-        if (pageNum < start || pageNum > end) {
-          pagesToRemove.push(p);
-        }
-      }
-
-      pagesToRemove.sort((a, b) => b - a);
-      for (const pageIdx of pagesToRemove) {
-        doc.removePage(pageIdx);
-      }
-
-      const bytes = await doc.save({ useObjectStreams: false });
+      const bytes = await buildPdfWithPages(doc, indices);
       const nameSuffix = start === end ? `p${start}` : `p${start}-${end}`;
 
       results.push({

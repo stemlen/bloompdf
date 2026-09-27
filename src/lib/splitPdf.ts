@@ -6,6 +6,7 @@
  */
 
 import { PDFDocument } from "@cantoo/pdf-lib";
+import { buildPdfWithPages } from "./pdfPageCopy";
 
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
@@ -128,25 +129,16 @@ export async function splitPDF(
   const baseName = file.name.replace(/\.pdf$/i, "");
   const results: GeneratedFile[] = [];
 
+  // Parse the source once; each output only receives the pages it needs.
+  const doc = await loadDoc(arrayBuffer, "");
+  const totalPages = doc.getPageCount();
+
   for (let i = 0; i < ranges.length; i++) {
     const { start, end } = ranges[i];
-    const doc = await loadDoc(arrayBuffer, "");
-    const totalPages = doc.getPageCount();
+    const indices: number[] = [];
+    for (let p = Math.max(1, start); p <= Math.min(end, totalPages); p++) indices.push(p - 1);
 
-    const pagesToRemove: number[] = [];
-    for (let p = 0; p < totalPages; p++) {
-      const pageNum = p + 1;
-      if (pageNum < start || pageNum > end) {
-        pagesToRemove.push(p);
-      }
-    }
-
-    pagesToRemove.sort((a, b) => b - a);
-    for (const pageIdx of pagesToRemove) {
-      doc.removePage(pageIdx);
-    }
-
-    const bytes = await doc.save({ useObjectStreams: false });
+    const bytes = await buildPdfWithPages(doc, indices);
 
     let fileName = `${baseName}_${start}`;
     if (start !== end) {
