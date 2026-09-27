@@ -90,7 +90,7 @@ export function TextToPdfTool() {
       if (result.unsupportedChars.length > 0) {
         const sample = result.unsupportedChars.slice(0, 8).join(" ");
         setNotice(
-          `${result.unsupportedChars.length} character(s) are not supported by the standard PDF fonts and were replaced with "?" (${sample}${result.unsupportedChars.length > 8 ? " …" : ""}).`
+          `${result.unsupportedChars.length} character(s) aren't covered by the built-in fonts (for example Chinese, Japanese, Korean or emoji) and were replaced with "?" (${sample}${result.unsupportedChars.length > 8 ? " …" : ""}).`
         );
       }
 

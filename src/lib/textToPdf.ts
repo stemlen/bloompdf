@@ -2,9 +2,12 @@
  * textToPdf.ts
  * Client-side plain text → PDF conversion with real, selectable text
  * (standard PDF fonts, no rasterisation). Runs entirely in the browser.
+ * Characters outside the standard fonts' WinAnsi set (Hindi, Arabic, ✓, ...)
+ * use on-demand Noto fallback fonts, see unicodeText.ts.
  */
 
-import { PDFDocument, StandardFonts, rgb, type PDFFont } from "@cantoo/pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "@cantoo/pdf-lib";
+import { createUnicodeTextRenderer } from "./unicodeText";
 
 export type TextFontFamily = "sans-serif" | "serif" | "monospace" | "Inter";
 export type TextFontSize = "10pt" | "12pt" | "14pt" | "16pt";
@@ -26,8 +29,10 @@ export interface TextToPdfOptions {
 export interface TextToPdfResult {
   bytes: Uint8Array;
   pageCount: number;
-  /** Characters the standard PDF fonts cannot encode (replaced with "?") */
+  /** Characters neither the standard font nor the bundled fallback fonts cover (replaced with "?") */
   unsupportedChars: string[];
+  /** True if fallback (Noto) fonts were embedded for non-Latin text or symbols */
+  usedFallbackFonts: boolean;
 }
 
 const A4: [number, number] = [595.28, 841.89];
@@ -39,38 +44,21 @@ const FONTS: Record<TextFontFamily, StandardFonts> = {
   monospace: StandardFonts.Courier,
 };
 
-/** Replaces characters the (WinAnsi) standard font cannot encode. */
-function sanitize(text: string, font: PDFFont, unsupported: Set<string>): string {
-  const cache = new Map<string, string>();
-  // @cantoo/pdf-lib silently encodes unsupported glyphs as "?", so check the
-  // font's character set explicitly to be able to tell the user.
-  const supported = new Set(font.getCharacterSet());
-  let out = "";
-  for (const ch of text) {
-    let mapped = cache.get(ch);
-    if (mapped === undefined) {
-      if (ch === "\n") mapped = "\n";
-      else if (ch === "\t") mapped = "    ";
-      else if (/[\u0000-\u001f\u007f]/.test(ch)) mapped = "";
-      else if (ch === "\u00a0") mapped = " ";
-      else {
-        const cp = ch.codePointAt(0) ?? 0;
-        if (supported.has(cp)) {
-          mapped = ch;
-        } else if (/\p{M}/u.test(ch)) {
-          // Combining marks of an unsupported script: fold into the "?" of the base char.
-          unsupported.add(ch);
-          mapped = "";
-        } else {
-          unsupported.add(ch);
-          mapped = "?";
-        }
-      }
-      cache.set(ch, mapped);
-    }
-    out += mapped;
+/** Normalises whitespace / control characters. Font coverage is handled by the renderer. */
+function sanitize(text: string): string {
+  return text
+    .normalize("NFC")
+    .replace(/\t/g, "    ")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "");
+}
+
+/** Splits into user-perceived characters so hard breaks never cut a cluster. */
+function graphemes(s: string): string[] {
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    return [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s)].map((g) => g.segment);
   }
-  return out;
+  return Array.from(s);
 }
 
 interface Line {
@@ -79,12 +67,11 @@ interface Line {
   last: boolean;
 }
 
-function wrapParagraph(par: string, font: PDFFont, size: number, maxWidth: number): Line[] {
+function wrapParagraph(par: string, width: (s: string) => number, maxWidth: number): Line[] {
   if (par === "") return [{ text: "", last: true }];
   const tokens = par.match(/\S+|\s+/g) ?? [];
   const lines: Line[] = [];
   let current = "";
-  const width = (s: string) => font.widthOfTextAtSize(s, size);
 
   const pushLine = (s: string) => lines.push({ text: s.replace(/\s+$/, ""), last: false });
 
@@ -105,14 +92,14 @@ function wrapParagraph(par: string, font: PDFFont, size: number, maxWidth: numbe
       current = "";
     }
     // Hard-break words longer than a full line.
-    let word = token;
-    while (width(word) > maxWidth) {
-      let cut = word.length - 1;
-      while (cut > 1 && width(word.slice(0, cut)) > maxWidth) cut--;
-      pushLine(word.slice(0, cut));
-      word = word.slice(cut);
+    let chars = graphemes(token);
+    while (chars.length > 1 && width(chars.join("")) > maxWidth) {
+      let cut = chars.length - 1;
+      while (cut > 1 && width(chars.slice(0, cut).join("")) > maxWidth) cut--;
+      pushLine(chars.slice(0, cut).join(""));
+      chars = chars.slice(cut);
     }
-    current = word;
+    current = chars.join("");
   }
   lines.push({ text: current.replace(/\s+$/, ""), last: true });
   return lines;
@@ -142,11 +129,17 @@ export async function textToPdf(text: string, options: TextToPdfOptions = {}): P
   const m = MARGINS_PT[margin] ?? 72;
   const maxWidth = pw - m * 2;
 
-  const unsupported = new Set<string>();
-  const clean = sanitize(text.replace(/\r\n?/g, "\n"), font, unsupported);
+  const input = sanitize(text.replace(/\r\n?/g, "\n"));
+  // Loads fallback fonts (and the shaper) only if the text needs them.
+  const renderer = await createUnicodeTextRenderer(doc, font, input);
+  const clean = renderer.prepare(input);
+  const width = (s: string) => renderer.widthOf(s, size);
 
-  const lines: Line[] = [];
-  for (const par of clean.split("\n")) lines.push(...wrapParagraph(par, font, size, maxWidth));
+  const lines: (Line & { rtl: boolean })[] = [];
+  for (const par of clean.split("\n")) {
+    const rtl = renderer.isRtl(par);
+    for (const l of wrapParagraph(par, width, maxWidth)) lines.push({ ...l, rtl });
+  }
   // Drop trailing empty lines so we don't emit blank trailing pages.
   while (lines.length > 1 && lines[lines.length - 1].text === "") lines.pop();
 
@@ -154,6 +147,10 @@ export async function textToPdf(text: string, options: TextToPdfOptions = {}): P
   let page = doc.addPage([pw, ph]);
   let y = ph - m - ascent;
   const color = rgb(0, 0, 0);
+  const draw = (s: string, x: number, rtl: boolean) => {
+    if (renderer.hasFallback) renderer.drawLine(page, s, x, y, size, rtl, { color });
+    else page.drawText(s, { x, y, size, font, color });
+  };
 
   for (const line of lines) {
     if (y < m) {
@@ -161,27 +158,35 @@ export async function textToPdf(text: string, options: TextToPdfOptions = {}): P
       y = ph - m - ascent;
     }
     if (line.text) {
-      const w = font.widthOfTextAtSize(line.text, size);
-      if (alignment === "justify" && !line.last && / /.test(line.text.trim())) {
+      const w = width(line.text);
+      // Right-to-left paragraphs start at the right margin ("left" = start).
+      const align = line.rtl && (alignment === "left" || alignment === "justify") ? "right" : alignment;
+      if (align === "justify" && !line.last && / /.test(line.text.trim())) {
         const words = line.text.trim().split(/ +/);
-        const wordsWidth = words.reduce((acc, wd) => acc + font.widthOfTextAtSize(wd, size), 0);
+        const wordsWidth = words.reduce((acc, wd) => acc + width(wd), 0);
         const gap = (maxWidth - wordsWidth) / (words.length - 1);
         let x = m;
         for (const wd of words) {
-          page.drawText(wd, { x, y, size, font, color });
-          x += font.widthOfTextAtSize(wd, size) + gap;
+          draw(wd, x, false);
+          x += width(wd) + gap;
         }
       } else {
         const x =
-          alignment === "center" ? m + (maxWidth - w) / 2 :
-          alignment === "right" ? m + maxWidth - w :
+          align === "center" ? m + (maxWidth - w) / 2 :
+          align === "right" ? m + maxWidth - w :
           m;
-        page.drawText(line.text, { x, y, size, font, color });
+        draw(line.text, x, line.rtl);
       }
     }
     y -= lineHeight;
   }
 
+  await renderer.finalize();
   const bytes = await doc.save();
-  return { bytes, pageCount: doc.getPageCount(), unsupportedChars: [...unsupported] };
+  return {
+    bytes,
+    pageCount: doc.getPageCount(),
+    unsupportedChars: [...renderer.unsupported],
+    usedFallbackFonts: renderer.hasFallback,
+  };
 }
