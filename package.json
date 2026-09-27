@@ -9,7 +9,8 @@
     "pages:preview": "npm run build && wrangler pages dev out",
     "pages:deploy": "npm run build && wrangler pages deploy out",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.9.1",
@@ -54,6 +55,7 @@
     "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^20",
     "@types/pdfjs-dist": "^2.10.377",
     "@types/react": "^19",
