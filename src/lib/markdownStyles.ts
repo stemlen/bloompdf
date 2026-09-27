@@ -118,7 +118,7 @@ export function renderMarkdownToHtml(markdown: string): string {
       }
 
       const highlighted = highlightCode(text, language);
-      return `<div class="code-block-wrapper">
+      return `<div class="code-block-wrapper${language ? " has-lang" : ""}">
         ${language ? `<div class="code-lang-tag">${escapeHtml(language)}</div>` : ""}
         <pre class="code-block language-${escapeHtml(language || "text")}"><code>${highlighted}</code></pre>
       </div>`;
@@ -444,15 +444,23 @@ export function getThemeStyles(theme: MarkdownTheme = "github", fontSize: "small
   break-inside: avoid;
 }
 
+/* Language label: a small tab pinned to the block's top-right corner. */
 .markdown-body .code-lang-tag {
   position: absolute;
-  top: 6px;
-  right: 10px;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 0 8px;
   font-size: 11px;
+  line-height: 20px;
   font-family: ui-monospace, monospace;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  opacity: 0.5;
+  color: var(--md-quote-fg);
+  background: var(--md-code-bg);
+  border-left: 1px solid var(--md-code-border);
+  border-bottom: 1px solid var(--md-code-border);
+  border-bottom-left-radius: 6px;
   user-select: none;
 }
 
@@ -467,6 +475,11 @@ export function getThemeStyles(theme: MarkdownTheme = "github", fontSize: "small
   border-radius: 0;
   overflow-x: auto;
   white-space: pre;
+}
+
+/* Keep the first code line clear of the language label. */
+.markdown-body .code-block-wrapper.has-lang pre.code-block {
+  padding-top: 28px;
 }
 
 .markdown-body pre.code-block > code {
