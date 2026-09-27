@@ -42,6 +42,9 @@ const FONTS: Record<TextFontFamily, StandardFonts> = {
 /** Replaces characters the (WinAnsi) standard font cannot encode. */
 function sanitize(text: string, font: PDFFont, unsupported: Set<string>): string {
   const cache = new Map<string, string>();
+  // @cantoo/pdf-lib silently encodes unsupported glyphs as "?", so check the
+  // font's character set explicitly to be able to tell the user.
+  const supported = new Set(font.getCharacterSet());
   let out = "";
   for (const ch of text) {
     let mapped = cache.get(ch);
@@ -51,10 +54,14 @@ function sanitize(text: string, font: PDFFont, unsupported: Set<string>): string
       else if (/[\u0000-\u001f\u007f]/.test(ch)) mapped = "";
       else if (ch === "\u00a0") mapped = " ";
       else {
-        try {
-          font.encodeText(ch);
+        const cp = ch.codePointAt(0) ?? 0;
+        if (supported.has(cp)) {
           mapped = ch;
-        } catch {
+        } else if (/\p{M}/u.test(ch)) {
+          // Combining marks of an unsupported script: fold into the "?" of the base char.
+          unsupported.add(ch);
+          mapped = "";
+        } else {
           unsupported.add(ch);
           mapped = "?";
         }
