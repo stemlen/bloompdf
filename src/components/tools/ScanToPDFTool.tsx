@@ -41,6 +41,8 @@ interface ScannedPage {
   id: string;
   file: File;
   originalImage: HTMLImageElement;
+  /** Object URL used to display the source image in the crop editor (revoked on delete/unmount). */
+  previewUrl: string;
   naturalWidth: number;
   naturalHeight: number;
   corners: Point[];
@@ -136,6 +138,22 @@ export function ScanToPDFTool() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // loadImageElement() revokes its own object URL once decoded, so the crop
+  // editor's <img> needs a URL of its own (it used to point at the revoked one,
+  // which logged ERR_FILE_NOT_FOUND and showed a broken base image).
+  const previewUrlsRef = useRef<Set<string>>(new Set());
+  const revokePreview = (url: string) => {
+    URL.revokeObjectURL(url);
+    previewUrlsRef.current.delete(url);
+  };
+  useEffect(() => {
+    const urls = previewUrlsRef.current;
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+      urls.clear();
+    };
+  }, []);
+
   // Dnd-kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -210,11 +228,14 @@ export function ScanToPDFTool() {
         const corners = detectDocumentEdges(win.cv, imgElement);
 
         const id = Math.random().toString(36).substring(2, 9);
-        
+        const previewUrl = URL.createObjectURL(file);
+        previewUrlsRef.current.add(previewUrl);
+
         newPages.push({
           id,
           file,
           originalImage: imgElement,
+          previewUrl,
           naturalWidth: imgElement.naturalWidth,
           naturalHeight: imgElement.naturalHeight,
           corners,
@@ -249,13 +270,18 @@ export function ScanToPDFTool() {
 
   const handleDropzoneDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+    // Copy the FileList: it can be emptied once the event handler returns.
+    if (e.dataTransfer.files.length) handleFiles(Array.from(e.dataTransfer.files));
   };
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.length) handleFiles(e.target.files);
+    // Snapshot the files first: `e.target.files` is a live FileList, and resetting
+    // the input below empties it while handleFiles() is still awaiting the first
+    // image, which made multi-select keep only the first file.
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = "";
+    if (files.length) handleFiles(files);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -338,6 +364,8 @@ export function ScanToPDFTool() {
   };
 
   const deletePage = (id: string) => {
+    const removed = pages.find((p) => p.id === id);
+    if (removed) revokePreview(removed.previewUrl);
     setPages((prev) => {
       const next = prev.filter((p) => p.id !== id);
       if (activePageId === id) {
@@ -523,7 +551,7 @@ export function ScanToPDFTool() {
                       {/* Base Image */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={activePage.originalImage.src}
+                        src={activePage.previewUrl}
                         alt="Original"
                         draggable={false}
                         className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-80"
@@ -619,7 +647,7 @@ export function ScanToPDFTool() {
                        <span className="text-[11px] font-semibold">PDF generated successfully!</span>
                      </div>
                      <button
-                        onClick={() => { setToolState("ready"); setPages([]); setActivePageId(null); }}
+                        onClick={() => { pages.forEach((p) => revokePreview(p.previewUrl)); setToolState("ready"); setPages([]); setActivePageId(null); }}
                         className="w-full h-10 bg-[#F3F3F2] hover:bg-[#E5E5E3] text-foreground rounded-lg font-semibold text-[13px] transition-colors flex items-center justify-center gap-2"
                       >
                         <RefreshCw className="w-3.5 h-3.5" /> Scan More
