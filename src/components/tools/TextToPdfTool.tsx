@@ -6,6 +6,7 @@ import {
   Upload, Edit3, Eye, File, AlignLeft, AlignCenter, AlignRight, AlignJustify
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { textToPdf } from "@/lib/textToPdf";
 
 type FontFamily = "sans-serif" | "serif" | "monospace" | "Inter";
 type FontSize = "10pt" | "12pt" | "14pt" | "16pt";
@@ -30,6 +31,7 @@ export function TextToPdfTool() {
   const [fileInfo, setFileInfo] = useState<{name: string, size: number} | null>(null);
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,36 +73,37 @@ export function TextToPdfTool() {
     if (!text.trim()) return;
     setConverting(true);
     setError(null);
+    setNotice(null);
     try {
-      const res = await fetch("/api/text-to-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          fontFamily,
-          fontSize,
-          lineSpacing,
-          alignment,
-          orientation,
-          margin
-        })
+      // 100% client-side: the text never leaves the browser.
+      const baseName = fileInfo ? fileInfo.name.replace(/\.(txt|text)$/i, "") : `document_${Date.now()}`;
+      const result = await textToPdf(text, {
+        fontFamily,
+        fontSize,
+        lineSpacing,
+        alignment,
+        orientation,
+        margin,
+        title: baseName,
       });
-      
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to generate PDF");
+
+      if (result.unsupportedChars.length > 0) {
+        const sample = result.unsupportedChars.slice(0, 8).join(" ");
+        setNotice(
+          `${result.unsupportedChars.length} character(s) are not supported by the standard PDF fonts and were replaced with "?" (${sample}${result.unsupportedChars.length > 8 ? " …" : ""}).`
+        );
       }
-      
-      const blob = await res.blob();
+
+      const blob = new Blob([result.bytes as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = fileInfo ? fileInfo.name.replace(/\.(txt|text)$/i, ".pdf") : `document_${Date.now()}.pdf`;
+      a.download = `${baseName}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
-      
+      // Revoking synchronously can cancel the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -163,7 +166,10 @@ export function TextToPdfTool() {
               <input
                 type="file"
                 ref={fileInputRef}
-                onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
+                  e.target.value = "";
+                }}
                 accept=".txt,.text"
                 className="hidden"
               />
@@ -174,6 +180,13 @@ export function TextToPdfTool() {
             <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 bg-[#FEF2F2] rounded-xl border border-[#E8607A]/20 text-[#E8607A] shadow-sm">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <p className="text-[13px] font-bold">{error}</p>
+            </div>
+          )}
+
+          {notice && (
+            <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 bg-[#FFFBEB] rounded-xl border border-[#F59E0B]/30 text-[#92400E] shadow-sm">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <p className="text-[13px] font-medium">{notice}</p>
             </div>
           )}
 
@@ -241,8 +254,7 @@ export function TextToPdfTool() {
                 onChange={(e) => setFontFamily(e.target.value as FontFamily)}
                 className="w-full h-10 px-3 border border-[#E5E5E3] rounded-lg text-[13px] font-bold focus:outline-none focus:border-[#E8607A] bg-card text-foreground"
               >
-                <option value="sans-serif">Arial / Sans-Serif</option>
-                <option value="Inter">Inter (Modern Sans)</option>
+                <option value="sans-serif">Helvetica / Arial (Sans-Serif)</option>
                 <option value="serif">Times New Roman / Serif</option>
                 <option value="monospace">Courier New / Monospace</option>
               </select>
