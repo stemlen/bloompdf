@@ -1115,6 +1115,17 @@ export function OCRPDFTool() {
         {/* Sticky Action Bar */}
         <div className="bg-card border-t border-border h-[80px] px-6 flex items-center justify-between flex-shrink-0 shadow-[0_-8px_24px_rgba(0,0,0,0.02)] z-30 relative">
           
+          {toolState === "done" && ocrResult?.textLayerWarning && (
+            <div
+              role="status"
+              data-testid="ocr-text-layer-warning"
+              className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-[#FFFBEB] rounded-xl border border-[#F59E0B]/30 shadow-lg max-w-md"
+            >
+              <AlertCircle className="w-5 h-5 text-[#D97706] flex-shrink-0" />
+              <p className="text-[12px] font-semibold text-foreground leading-tight">{ocrResult.textLayerWarning}</p>
+            </div>
+          )}
+
           {errorMessage && toolState === "error" && (
             <div className="absolute -top-16 right-6 flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-[#E8607A]/20 shadow-lg animate-slide-up max-w-sm">
               <AlertCircle className="w-5 h-5 text-[#E8607A] flex-shrink-0" />
