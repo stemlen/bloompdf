@@ -12,8 +12,15 @@
  * - Shaped glyph ids are written directly (Type0 / Identity-H CID font,
  *   subset to the glyphs used) and each run is wrapped in a /Span with
  *   /ActualText holding the original string, so copy/paste and pdftotext
- *   return the original text. The ToUnicode CMap also maps base glyphs for
- *   extractors that ignore ActualText.
+ *   return the original text.
+ * - For extractors that ignore ActualText (pdf.js / Firefox), the ToUnicode
+ *   CMap is built from HarfBuzz clusters: each cluster's text is spread over
+ *   its glyphs in content-stream order (plus invisible zero-width "carrier"
+ *   glyphs for combining marks), so concatenating ToUnicode strings in
+ *   stream order gives the original text (see layoutToUnicode). CIDs are
+ *   allocated per (glyph, text) pair with a CIDToGIDMap, so a glyph used in
+ *   different contexts (e.g. an Arabic dotless body shared by several
+ *   letters) gets the right mapping each time.
  * - Lines containing Arabic are laid out with a simplified bidi algorithm
  *   (paragraph direction from the first strong character; RTL/LTR runs
  *   reordered per line). Text is never rasterised.
@@ -30,6 +37,7 @@ import {
   PDFOperatorNames as Ops,
   PDFPage,
   PDFRef,
+  PDFString,
   beginText,
   endText,
   moveText,
@@ -122,12 +130,18 @@ interface Positioned {
   xAdvance: number;
   xOffset: number;
   yOffset: number;
+  /** Text this glyph maps to in the ToUnicode CMap (see layoutToUnicode) */
+  text: string;
+  /** Invisible zero-width glyph that only carries text (see layoutToUnicode) */
+  carrier?: boolean;
 }
 
 /** A glyph at an absolute position (font units) relative to its run's origin. */
 interface Placed {
   gid: number;
   cluster: number;
+  text: string;
+  carrier?: boolean;
   x: number;
   y: number;
   /** Zero-advance glyph (combining mark, Arabic dots, ...) */
@@ -138,11 +152,143 @@ interface Placed {
 function place(glyphs: Positioned[]): { placed: Placed[]; advance: number } {
   let pen = 0;
   const placed = glyphs.map((g) => {
-    const p = { gid: g.gid, cluster: g.cluster, x: pen + g.xOffset, y: g.yOffset, mark: g.xAdvance === 0 };
+    const p = { gid: g.gid, cluster: g.cluster, text: g.text, carrier: g.carrier, x: pen + g.xOffset, y: g.yOffset, mark: g.xAdvance === 0 };
     pen += g.xAdvance;
     return p;
   });
   return { placed, advance: pen };
+}
+
+const ZWSP = "\u200b";
+const isMn = (c: string) => /\p{Mn}/u.test(c);
+const isCf = (c: string) => /\p{Cf}/u.test(c);
+
+/**
+ * Splits a cluster's text over its k spacing glyphs for the ToUnicode CMap.
+ * Returns k pieces (in reading order) plus the text before, between and
+ * after them (gaps[i] precedes pieces[i]; gaps[k] is the tail).
+ *
+ * pdf.js (Firefox) ignores /ActualText and reads ToUnicode strings in
+ * content-stream order, and it treats any string containing a nonspacing
+ * mark (\p{Mn}: virama, most vowel signs, harakat) as a zero-width
+ * diacritic: its width is dropped and it skips line/space detection. So a
+ * spacing glyph gets only mark-free text; marks go into the gaps, which are
+ * written on invisible zero-width carrier glyphs. Format characters (ZWJ,
+ * ZWNJ; pdf.js skips any string ending in one) are left out of this
+ * fallback mapping; /ActualText keeps them.
+ */
+function splitClusterText(text: string, k: number): { pieces: string[]; gaps: string[] } {
+  const tokens: { s: string; mn: boolean }[] = [];
+  for (const c of text) {
+    if (isCf(c)) continue;
+    const last = tokens[tokens.length - 1];
+    if (last && last.mn === isMn(c)) last.s += c;
+    else tokens.push({ s: c, mn: isMn(c) });
+  }
+  // One mark-free piece per spacing glyph where possible: split the longest runs.
+  const free = () => tokens.filter((t) => !t.mn).length;
+  while (free() < k) {
+    let best = -1;
+    tokens.forEach((t, i) => {
+      if (!t.mn && [...t.s].length > 1 && (best < 0 || [...t.s].length > [...tokens[best].s].length)) best = i;
+    });
+    if (best < 0) break;
+    const [first, ...rest] = [...tokens[best].s];
+    tokens.splice(best, 1, { s: first, mn: false }, { s: rest.join(""), mn: false });
+  }
+  const pieces: string[] = [];
+  const gaps: string[] = [""];
+  for (const t of tokens) {
+    if (!t.mn && pieces.length < k) {
+      pieces.push(t.s);
+      gaps.push("");
+    } else {
+      gaps[gaps.length - 1] += t.s;
+    }
+  }
+  while (pieces.length < k) {
+    pieces.push(""); // more glyphs than characters (rare): mapped to U+200B
+    gaps.push("");
+  }
+  return { pieces, gaps };
+}
+
+/**
+ * Glyphs in visual order with ToUnicode text, from HarfBuzz clusters
+ * (shaped with cluster level "characters", so each glyph knows the first
+ * character it comes from), plus zero-width carrier glyphs (see
+ * splitClusterText).
+ *
+ * Clusters are first merged, in reading order, until they are monotonic,
+ * the same way HarfBuzz's grapheme cluster levels do. A reordered pre-base
+ * matra therefore joins its syllable: in "हिन्दी" the glyphs ि + ह form one
+ * cluster "हि". The cluster's text is then distributed over its glyphs in
+ * the order they are drawn, so a reader that concatenates ToUnicode strings
+ * in stream order gets logical text: the ि glyph maps to "ह" and the ह
+ * glyph to "ि"; the क्ष ligature maps to "क" followed by a carrier "्ष".
+ * Every (glyph, text) pair gets its own CID, so such context-dependent
+ * mappings don't conflict. Zero-width glyphs drawn by the font (marks,
+ * Arabic dots) map to U+200B, which pdf.js drops.
+ *
+ * RTL runs: pdf.js starts a new text item at every marked-content operator,
+ * so with one /ActualText span per cluster each RTL cluster is its own item.
+ * Items are read in stream order (clusters are emitted in logical order, see
+ * drawLine) and pdf.js runs its bidi step on each item, which reverses RTL
+ * text, so RTL strings are stored reversed (a lam-alef ligature maps to
+ * "ال" and reads back as "لا"). A space glyph between RTL clusters would be
+ * dropped (a whitespace-only item), so its space moves to the start of the
+ * next cluster's text and the space glyph itself maps to U+200B.
+ */
+function layoutToUnicode(text: string, glyphs: ShapedGlyph[], rtl: boolean, carrierGid: number | null): Positioned[] {
+  const order = glyphs.map((_, i) => i);
+  if (rtl) order.reverse(); // reading order
+  const starts = [...new Set(glyphs.map((g) => g.cluster))].sort((a, b) => a - b);
+  const endOf = (cluster: number) => starts.find((st) => st > cluster) ?? text.length;
+
+  const groups: { min: number; max: number; idx: number[] }[] = [];
+  for (const i of order) {
+    let cur = { min: glyphs[i].cluster, max: glyphs[i].cluster, idx: [i] };
+    while (groups.length && cur.min <= groups[groups.length - 1].max) {
+      const prev = groups.pop()!;
+      cur = { min: Math.min(prev.min, cur.min), max: Math.max(prev.max, cur.max), idx: [...prev.idx, ...cur.idx] };
+    }
+    groups.push(cur);
+  }
+
+  const reading: Positioned[] = [];
+  const carrier = (t: string, cluster: number) => {
+    if (!t) return;
+    if (carrierGid === null) {
+      // No blank glyph to carry the text: append it to the previous glyph.
+      const prev = reading[reading.length - 1];
+      if (prev) prev.text = (prev.text === ZWSP ? "" : prev.text) + t;
+      return;
+    }
+    reading.push({ gid: carrierGid, cluster, xAdvance: 0, xOffset: 0, yOffset: 0, text: t, carrier: true });
+  };
+  for (const grp of groups) {
+    const members = grp.idx;
+    const spacing = members.filter((i) => glyphs[i].xAdvance !== 0);
+    const { pieces, gaps } = splitClusterText(text.slice(grp.min, endOf(grp.max)), spacing.length);
+    const cl = glyphs[members[0]].cluster;
+    carrier(gaps[0], cl);
+    for (const i of members) {
+      const j = spacing.indexOf(i);
+      reading.push({ ...glyphs[i], text: j >= 0 ? pieces[j] || ZWSP : ZWSP });
+      if (j >= 0) carrier(gaps[j + 1], glyphs[i].cluster);
+    }
+  }
+  if (!rtl) return reading;
+  for (let i = 0; i < reading.length; i++) {
+    const g = reading[i];
+    if (g.carrier || g.xAdvance === 0 || !/^\s+$/.test(g.text)) continue;
+    const next = reading.findIndex((n, j) => j > i && !n.carrier && n.xAdvance !== 0 && n.text !== ZWSP);
+    if (next < 0 || /^\s/.test(reading[next].text)) continue;
+    reading[next].text = g.text + reading[next].text;
+    g.text = ZWSP;
+  }
+  const reverse = (t: string) => (t === ZWSP ? t : [...t].reverse().join(""));
+  return reading.reverse().map((g) => ({ ...g, text: reverse(g.text) }));
 }
 
 let subsetTagCounter = 0;
@@ -151,9 +297,11 @@ class EmbeddedFont {
   readonly upem: number;
   private ref: PDFRef | null = null;
   private subset: FkSubset;
+  /** original gid → gid in the subset */
   private gidMap = new Map<number, number>();
-  /** subset gid → Unicode string for the ToUnicode CMap */
-  private toUnicode = new Map<number, string>();
+  /** CID → (original gid, ToUnicode text). CID 0 is .notdef. */
+  private cids: { gid: number; text: string; carrier?: boolean }[] = [{ gid: 0, text: "" }];
+  private cidByKey = new Map<string, number>();
   private advances = new Map<number, number>();
   private pageNames = new WeakMap<PDFPage, PDFName>();
 
@@ -185,14 +333,13 @@ class EmbeddedFont {
     const spec = FONTS[this.slot].hb;
     if (this.hb && spec) {
       const glyphs = this.hb.shape(text, { rtl, ...spec });
-      this.learnClusters(text, glyphs);
-      return glyphs;
+      return layoutToUnicode(text, glyphs, rtl, this.blankGlyph());
     }
     const run = this.fk.layout(text);
     return run.glyphs.map((g, i) => {
-      this.learn(g.id, g.codePoints.length ? String.fromCodePoint(...g.codePoints) : "");
       const p = run.positions[i];
-      return { gid: g.id, cluster: 0, xAdvance: p.xAdvance, xOffset: p.xOffset, yOffset: p.yOffset };
+      const t = g.codePoints.length ? String.fromCodePoint(...g.codePoints) : "";
+      return { gid: g.id, cluster: 0, xAdvance: p.xAdvance, xOffset: p.xOffset, yOffset: p.yOffset, text: t };
     });
   }
 
@@ -213,30 +360,32 @@ class EmbeddedFont {
   }
 
   /**
-   * Fallback ToUnicode entries for extractors that ignore /ActualText.
-   * HarfBuzz runs with cluster level "characters", so each glyph maps to the
-   * characters from its cluster index up to the next cluster (a conjunct
-   * gets "क्ष", a reordered ि gets "ि"). When several glyphs come from the
-   * same characters (Arabic letter body + dots), the advancing glyph gets
-   * the text and zero-width ones map to nothing. A glyph shared by several
-   * words keeps its first mapping, so this is best effort; ActualText is exact.
+   * The CID for a glyph with a given ToUnicode text. The same glyph can need
+   * different texts (a shared Arabic letter body, a glyph that carries a
+   * cluster in one word and is a mark in another), so CIDs are allocated per
+   * (glyph, text) pair and mapped back to glyphs with a CIDToGIDMap.
    */
-  private learnClusters(text: string, glyphs: ShapedGlyph[]) {
-    const starts = [...new Set(glyphs.map((g) => g.cluster))].sort((a, b) => a - b);
-    const byCluster = new Map<number, ShapedGlyph[]>();
-    for (const g of glyphs) byCluster.set(g.cluster, [...(byCluster.get(g.cluster) ?? []), g]);
-    for (const [cluster, members] of byCluster) {
-      const clusterText = text.slice(cluster, starts.find((st) => st > cluster) ?? text.length);
-      const ordered = [...members].sort((a, b) => Number(b.xAdvance !== 0) - Number(a.xAdvance !== 0));
-      // Zero-width leftovers map to U+200B: an empty mapping makes some
-      // extractors (pdf.js) fall back to the raw glyph code, i.e. junk.
-      ordered.forEach((g, i) => this.learn(g.gid, i === 0 ? clusterText : "\u200b"));
+  private cidFor(gid: number, text: string, carrier = false): number {
+    const mapped = text || this.cmapText(gid) || ZWSP;
+    const key = `${gid}|${mapped}|${carrier ? 0 : 1}`;
+    let cid = this.cidByKey.get(key);
+    if (cid === undefined) {
+      this.use(gid);
+      cid = this.cids.length;
+      this.cids.push({ gid, text: mapped, carrier });
+      this.cidByKey.set(key, cid);
     }
+    return cid;
   }
 
-  private learn(gid: number, text: string) {
-    const sub = this.use(gid);
-    if (!this.toUnicode.has(sub)) this.toUnicode.set(sub, text);
+  private blankGid: number | null | undefined;
+  /** A glyph with no outline (the space), used for zero-width carrier CIDs. */
+  blankGlyph(): number | null {
+    if (this.blankGid === undefined) {
+      const g = this.fk.hasGlyphForCodePoint(0x20) ? this.fk.glyphForCodePoint(0x20) : null;
+      this.blankGid = g && g.id !== 0 ? g.id : null;
+    }
+    return this.blankGid;
   }
 
   /** Adds a glyph to the subset and returns its id in the subset. */
@@ -282,8 +431,7 @@ class EmbeddedFont {
       items = [];
     };
     for (const p of placed) {
-      const sub = this.use(p.gid);
-      if (!this.toUnicode.has(sub)) this.toUnicode.set(sub, this.cmapText(p.gid));
+      const cid = this.cidFor(p.gid, p.text, p.carrier);
       if (p.y !== rise) {
         flushTJ();
         ops.push(setTextRise((p.y * size) / this.upem));
@@ -294,8 +442,8 @@ class EmbeddedFont {
         flushHex();
         items.push(PDFNumber.of(Math.round(-shift * k * 100) / 100));
       }
-      hex += sub.toString(16).padStart(4, "0");
-      curX = p.x + this.advance(p.gid);
+      hex += cid.toString(16).padStart(4, "0");
+      curX = p.x + (p.carrier ? 0 : this.advance(p.gid));
     }
     flushTJ();
     if (rise !== 0) ops.push(setTextRise(0));
@@ -312,9 +460,15 @@ class EmbeddedFont {
     const tag = [...tagChars].map((c) => String.fromCharCode(65 + parseInt(c, 26))).join("");
     const baseFont = `${tag}+${(this.fk.postscriptName ?? `Noto-${this.slot}`).replace(/[^A-Za-z0-9-]/g, "")}`;
 
-    const widths: (number | number[])[] = [];
-    const subs = [...this.gidMap.entries()].sort((a, b) => a[1] - b[1]);
-    for (const [gid, sub] of subs) widths.push(sub, [Math.round(this.advance(gid) * k)]);
+    // Widths and CID → subset-gid map, indexed by CID.
+    const widths: (number | number[])[] = [1, this.cids.slice(1).map((c) => (c.carrier ? 0 : Math.round(this.advance(c.gid) * k)))];
+    const cidToGid = new Uint8Array(this.cids.length * 2);
+    this.cids.forEach((c, cid) => {
+      const sub = cid === 0 ? 0 : this.gidMap.get(c.gid)!;
+      cidToGid[cid * 2] = sub >> 8;
+      cidToGid[cid * 2 + 1] = sub & 0xff;
+    });
+    const toUnicodeMap = new Map(this.cids.slice(1).map((c, i) => [i + 1, c.text] as [number, string]));
 
     const bbox = this.fk.bbox;
     const descriptor = ctx.obj({
@@ -333,12 +487,12 @@ class EmbeddedFont {
       Type: "Font",
       Subtype: "CIDFontType2",
       BaseFont: baseFont,
-      CIDSystemInfo: { Registry: PDFHexString.fromText("Adobe"), Ordering: PDFHexString.fromText("Identity"), Supplement: 0 },
+      CIDSystemInfo: { Registry: PDFString.of("Adobe"), Ordering: PDFString.of("Identity"), Supplement: 0 },
       FontDescriptor: ctx.register(descriptor),
       W: widths,
-      CIDToGIDMap: "Identity",
+      CIDToGIDMap: ctx.register(ctx.flateStream(cidToGid)),
     });
-    const toUnicode = ctx.register(ctx.flateStream(buildToUnicode(this.toUnicode)));
+    const toUnicode = ctx.register(ctx.flateStream(buildToUnicode(toUnicodeMap)));
     ctx.assign(
       this.ref,
       ctx.obj({
@@ -435,6 +589,12 @@ export interface DrawOptions {
   invisible?: boolean;
   /** Horizontal scaling (Tz) in percent */
   horizontalScale?: number;
+  /**
+   * For text drawn one word at a time (OCR): if the text starts with an RTL
+   * run, its ToUnicode text gets a leading space. pdf.js only infers spaces
+   * from gaps when moving right, so without it RTL words run together.
+   */
+  leadingSpace?: boolean;
 }
 
 export interface UnicodeTextRenderer {
@@ -666,7 +826,7 @@ export async function createUnicodeTextRenderer(
         startX.set(seg, px);
         px += segWidth(seg, size) * scale;
       }
-      for (const seg of logical) {
+      for (const [segIndex, seg] of logical.entries()) {
         const cx = startX.get(seg)!;
         if (seg.kind === "base") {
           ops.push(...wrapTz(tz, baseOps(drawnBaseText(seg), cx)));
@@ -674,7 +834,20 @@ export async function createUnicodeTextRenderer(
         }
         const f = fonts.get(seg.kind)!;
         const { placed } = place(shaped(seg));
-        const span = (actualText: string, glyphs: Placed[]) => {
+        const span = (actualText: string, drawOrder: Placed[]) => {
+          // Glyphs mapped to U+200B go last: pdf.js skips them without
+          // applying a TJ adjustment that follows, which would shift its
+          // idea of where the next glyphs are (spurious spaces/splits).
+          // Positions are absolute, so rendering is unaffected.
+          const silent = drawOrder.filter((g) => g.text === ZWSP);
+          const glyphs = [...drawOrder.filter((g) => g.text !== ZWSP), ...silent];
+          const blank = f.blankGlyph();
+          if (silent.length && silent.length < glyphs.length && blank !== null) {
+            // Poppler takes an ActualText span's extent from its last glyph, so
+            // end with an invisible zero-width glyph at the span's right edge.
+            const right = Math.max(...drawOrder.map((g) => g.x + (g.carrier ? 0 : f.advance(g.gid))));
+            glyphs.push({ gid: blank, cluster: 0, text: ZWSP, carrier: true, x: right, y: 0, mark: true });
+          }
           // Inline property list; pdf-lib's operand type omits dicts but serialises them fine.
           const props = doc.context.obj({ ActualText: PDFHexString.fromText(actualText) }) as unknown as PDFArray;
           ops.push(
@@ -689,17 +862,28 @@ export async function createUnicodeTextRenderer(
           );
         };
         if (seg.strong !== "R") {
-          // LTR run: one span with the original text.
+          // LTR run: one span with the original text, glyphs in visual order.
+          // (Emitting them in logical order instead, e.g. the consonant before
+          // a pre-base matra, renders identically but makes pdf.js insert
+          // spaces at every backward jump; the ToUnicode distribution in
+          // layoutToUnicode gives logical text without reordering.)
           span(seg.text, placed);
         } else {
           // RTL run: one span per cluster. Extractors order RTL text by glyph
           // position, so a single span spread left-to-right would come out
           // reversed. Within a cluster the advancing glyph carries the text
-          // and the zero-width marks get an empty ActualText, so the span's
-          // extent matches the cluster (no spurious word breaks).
-          // Emitted in logical order (positions are absolute) for extractors
-          // that read the content stream in order.
-          for (const group of clusterGroups(seg.text, placed).reverse()) {
+          // and the zero-width glyphs (marks, carriers) get an empty
+          // ActualText, so the span's extent matches the cluster (no spurious
+          // word breaks). Clusters are emitted in logical order (positions
+          // are absolute): extractors that read the content stream in order,
+          // like pdf.js, then get logical text (see layoutToUnicode).
+          const groups = clusterGroups(seg.text, placed).reverse();
+          if (opts.leadingSpace && segIndex === 0) {
+            // RTL strings are stored reversed (see layoutToUnicode): append.
+            const first = groups[0]?.glyphs.find((g) => !g.mark && g.text !== ZWSP);
+            if (first) first.text += " ";
+          }
+          for (const group of groups) {
             const base = group.glyphs.filter((g) => !g.mark);
             const marks = group.glyphs.filter((g) => g.mark);
             if (base.length === 0) {
