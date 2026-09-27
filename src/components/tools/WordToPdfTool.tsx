@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadPdfForRendering, renderPageToDataURL } from "@/lib/pdfRender";
+import { CONVERT_ENABLED, ConvertUnavailableError, convertWithBackend } from "@/lib/convertApi";
+import { ConvertUnavailable } from "./ConvertUnavailable";
 
 
 export function WordToPdfTool() {
@@ -16,11 +18,13 @@ export function WordToPdfTool() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPreviewSlide, setCurrentPreviewSlide] = useState(0);
-
+  // Backend disabled at build time, or found missing at runtime.
+  const [unavailable, setUnavailable] = useState(!CONVERT_ENABLED);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (uploadedFile: File) => {
+    if (unavailable) return;
     if (!uploadedFile.name.toLowerCase().endsWith('.doc') && !uploadedFile.name.toLowerCase().endsWith('.docx')) {
       setError("Please upload a .doc or .docx file.");
       return;
@@ -38,20 +42,7 @@ export function WordToPdfTool() {
 
   const convertFile = async (targetFile: File) => {
     try {
-      const formData = new FormData();
-      formData.append("file", targetFile);
-
-      const res = await fetch("/api/word-to-pdf", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to convert document");
-      }
-
-      const blob = await res.blob();
+      const blob = await convertWithBackend({ type: "word", target: "pdf", file: targetFile });
       setPdfBlob(blob);
 
       // Render thumbnails
@@ -68,7 +59,12 @@ export function WordToPdfTool() {
       
       setThumbnails(newThumbnails);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof ConvertUnavailableError) {
+        setUnavailable(true);
+        setFile(null);
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -83,7 +79,7 @@ export function WordToPdfTool() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   };
 
   return (
@@ -91,8 +87,15 @@ export function WordToPdfTool() {
       {/* ── Left Panel (Preview & Input Area) ─────────────────────────────────── */}
       <div className="flex-1 flex flex-col relative min-h-0 h-full overflow-hidden">
         
+        {/* Backend unavailable */}
+        {unavailable && (
+          <div className="absolute inset-0 flex items-center justify-center p-4 md:p-10 overflow-y-auto">
+            <ConvertUnavailable toolName="Word to PDF" />
+          </div>
+        )}
+
         {/* Upload Area */}
-        {(!loading && !file) && (
+        {(!unavailable && !loading && !file) && (
           <div className="absolute inset-0 flex items-center justify-center p-6 md:p-10">
             <div 
               className="w-full max-w-2xl bg-card border-2 border-dashed rounded-3xl p-8 md:p-16 flex flex-col items-center justify-center text-center transition-all border-[#D1D1CE] hover:border-[#2563EB] hover:bg-[#F9FAFB] cursor-pointer group shadow-sm"
@@ -126,7 +129,7 @@ export function WordToPdfTool() {
         )}
 
         {/* File Info and Previews */}
-        {(loading || file) && (
+        {(!unavailable && (loading || file)) && (
           <div className="flex-1 flex flex-col overflow-hidden h-full bg-[#1A1A1A]">
             {/* Header overlay for the preview */}
             <div className="h-14 px-4 border-b border-[#333] flex items-center justify-between bg-[#222] z-10 flex-shrink-0">

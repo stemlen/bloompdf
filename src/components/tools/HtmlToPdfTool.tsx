@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Globe, Code, Monitor, Laptop, Tablet, Smartphone, FileText,
-  Settings, Loader2, Download, AlertCircle, Maximize, CheckSquare, Square
+  Globe, Code, Monitor, Laptop, Tablet, Smartphone,
+  Settings, Loader2, Download, AlertCircle, CheckSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { downloadFile } from "@/lib/splitPdf";
+import { CONVERT_ENABLED, ConvertUnavailableError, convertWithBackend } from "@/lib/convertApi";
+import { ConvertUnavailable } from "./ConvertUnavailable";
 
 type InputType = "url" | "html";
 type ScreenSize = "desktop" | "laptop" | "tablet" | "mobile";
@@ -42,64 +43,62 @@ export function HtmlToPdfTool() {
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const buildPayload = (action: "preview" | "pdf") => ({
-    action,
-    inputType,
-    inputValue,
-    screenSize,
-    pageSize,
-    margins,
-    orientation,
-    features: {
-      blockAds,
-      removePopups,
-      printFriendly,
-      removeCookieBanners,
-    },
-    pdfSettings: {
-      singlePage,
-      backgroundGraphics,
-      scaleToFit,
+  // Backend disabled at build time, or found missing at runtime.
+  const [unavailable, setUnavailable] = useState(!CONVERT_ENABLED);
+
+  // Revoke the previous preview object URL when it changes/unmounts.
+  useEffect(() => {
+    return () => {
+      if (previewImage?.startsWith("blob:")) URL.revokeObjectURL(previewImage);
+    };
+  }, [previewImage]);
+
+  const requestConversion = (target: "pdf" | "png") => {
+    const options = {
+      screenSize,
+      pageSize,
+      margins,
+      orientation,
+      features: { blockAds, removePopups, printFriendly, removeCookieBanners },
+      pdfSettings: { singlePage, backgroundGraphics, scaleToFit },
+    };
+    if (inputType === "url") {
+      let url = inputValue.trim();
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+      return convertWithBackend({ type: "html", target, url, options });
     }
-  });
+    const htmlFile = new Blob([inputValue], { type: "text/html" });
+    return convertWithBackend({ type: "html", target, file: htmlFile, fileName: "index.html", options });
+  };
+
+  const handleFailure = (err: unknown) => {
+    if (err instanceof ConvertUnavailableError) {
+      setUnavailable(true);
+    } else {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    }
+  };
 
   const handlePreview = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || unavailable) return;
     setLoadingPreview(true);
     setError(null);
     try {
-      const res = await fetch("/api/html-to-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload("preview"))
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate preview");
-      setPreviewImage(data.data);
+      const blob = await requestConversion("png");
+      setPreviewImage(URL.createObjectURL(blob));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      handleFailure(err);
     } finally {
       setLoadingPreview(false);
     }
   };
 
   const handleConvert = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || unavailable) return;
     setConverting(true);
     setError(null);
     try {
-      const res = await fetch("/api/html-to-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload("pdf"))
-      });
-      
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to generate PDF");
-      }
-      
-      const blob = await res.blob();
+      const blob = await requestConversion("pdf");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -107,30 +106,13 @@ export function HtmlToPdfTool() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
-      
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      handleFailure(err);
     } finally {
       setConverting(false);
     }
   };
-
-  // Helper for rendering checkboxes
-  const CheckboxItem = ({ checked, onChange, label, desc }: { checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string }) => (
-    <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-[#F9FAFB] cursor-pointer transition-colors group">
-      <div className={cn(
-        "mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors",
-        checked ? "bg-[#10B981] border-[#10B981]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]"
-      )}>
-        {checked && <CheckSquare className="w-3 h-3 text-white" />}
-      </div>
-      <div>
-        <div className="text-[12px] font-semibold text-foreground leading-tight">{label}</div>
-        {desc && <div className="text-[11px] text-[#A1A19D] leading-tight mt-0.5">{desc}</div>}
-      </div>
-    </label>
-  );
 
   return (
     <div className="flex flex-col md:flex-row w-full h-full bg-muted relative overflow-hidden">
@@ -169,7 +151,7 @@ export function HtmlToPdfTool() {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="https://example.com"
-                    onKeyDown={(e) => e.key === 'Enter' && handlePreview()}
+                    onKeyDown={(e) => e.key === 'Enter' && !unavailable && handlePreview()}
                     className="w-full h-12 pl-12 pr-4 bg-card border-2 border-[#E5E5E3] focus:border-[#2563EB] rounded-xl text-[15px] outline-none transition-all"
                   />
                 </div>
@@ -186,12 +168,12 @@ export function HtmlToPdfTool() {
               
               <button
                 onClick={handlePreview}
-                disabled={loadingPreview || !inputValue.trim()}
+                disabled={unavailable || loadingPreview || !inputValue.trim()}
                 className={cn(
                   "h-12 px-8 rounded-xl font-bold text-[14px] flex items-center justify-center transition-all shadow-sm flex-shrink-0",
                   loadingPreview
                     ? "bg-[#2563EB]/80 text-white cursor-wait"
-                    : !inputValue.trim()
+                    : unavailable || !inputValue.trim()
                     ? "bg-muted text-[#A1A19D] cursor-not-allowed border border-border"
                     : "bg-[#2563EB] hover:bg-[#1D4ED8] text-white hover:shadow-md"
                 )}
@@ -212,7 +194,11 @@ export function HtmlToPdfTool() {
 
         {/* Preview Area */}
         <div className="flex-1 flex flex-col bg-muted/40 relative overflow-hidden">
-          {previewImage ? (
+          {unavailable ? (
+            <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8 overflow-y-auto">
+              <ConvertUnavailable toolName="HTML to PDF" />
+            </div>
+          ) : previewImage ? (
             <div className="absolute inset-0 flex items-start justify-center p-8 overflow-y-auto custom-scrollbar bg-[#F3F3F2]">
               <div className="bg-card rounded-lg shadow-xl overflow-hidden border border-border max-w-full">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -336,24 +322,28 @@ export function HtmlToPdfTool() {
             <p className="text-[12px] font-bold text-foreground uppercase tracking-wider">Web Cleanup</p>
             <div className="space-y-1">
               <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#F9FAFB] transition-colors group">
+                <input type="checkbox" className="sr-only" checked={blockAds} onChange={(e) => setBlockAds(e.target.checked)} />
                 <div className={cn("w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors", blockAds ? "bg-[#2563EB] border-[#2563EB]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]")}>
                   {blockAds && <CheckSquare className="w-3.5 h-3.5 text-white" />}
                 </div>
                 <div className="text-[13px] font-bold text-foreground">Block ads & trackers</div>
               </label>
               <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#F9FAFB] transition-colors group">
+                <input type="checkbox" className="sr-only" checked={removePopups} onChange={(e) => setRemovePopups(e.target.checked)} />
                 <div className={cn("w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors", removePopups ? "bg-[#2563EB] border-[#2563EB]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]")}>
                   {removePopups && <CheckSquare className="w-3.5 h-3.5 text-white" />}
                 </div>
                 <div className="text-[13px] font-bold text-foreground">Remove popups</div>
               </label>
               <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#F9FAFB] transition-colors group">
+                <input type="checkbox" className="sr-only" checked={removeCookieBanners} onChange={(e) => setRemoveCookieBanners(e.target.checked)} />
                 <div className={cn("w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors", removeCookieBanners ? "bg-[#2563EB] border-[#2563EB]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]")}>
                   {removeCookieBanners && <CheckSquare className="w-3.5 h-3.5 text-white" />}
                 </div>
                 <div className="text-[13px] font-bold text-foreground">Hide cookie banners</div>
               </label>
               <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#F9FAFB] transition-colors group">
+                <input type="checkbox" className="sr-only" checked={printFriendly} onChange={(e) => setPrintFriendly(e.target.checked)} />
                 <div className={cn("w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors", printFriendly ? "bg-[#2563EB] border-[#2563EB]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]")}>
                   {printFriendly && <CheckSquare className="w-3.5 h-3.5 text-white" />}
                 </div>
@@ -367,18 +357,21 @@ export function HtmlToPdfTool() {
             <p className="text-[12px] font-bold text-foreground uppercase tracking-wider">Advanced PDF Options</p>
             <div className="space-y-1">
               <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#F9FAFB] transition-colors group">
+                <input type="checkbox" className="sr-only" checked={backgroundGraphics} onChange={(e) => setBackgroundGraphics(e.target.checked)} />
                 <div className={cn("w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors", backgroundGraphics ? "bg-[#2563EB] border-[#2563EB]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]")}>
                   {backgroundGraphics && <CheckSquare className="w-3.5 h-3.5 text-white" />}
                 </div>
                 <div className="text-[13px] font-bold text-foreground">Include backgrounds</div>
               </label>
               <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#F9FAFB] transition-colors group">
+                <input type="checkbox" className="sr-only" checked={scaleToFit} onChange={(e) => setScaleToFit(e.target.checked)} />
                 <div className={cn("w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors", scaleToFit ? "bg-[#2563EB] border-[#2563EB]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]")}>
                   {scaleToFit && <CheckSquare className="w-3.5 h-3.5 text-white" />}
                 </div>
                 <div className="text-[13px] font-bold text-foreground">Scale to fit width</div>
               </label>
               <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-[#F9FAFB] transition-colors group">
+                <input type="checkbox" className="sr-only" checked={singlePage} onChange={(e) => setSinglePage(e.target.checked)} />
                 <div className={cn("w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors", singlePage ? "bg-[#2563EB] border-[#2563EB]" : "border-[#D1D1CE] bg-card group-hover:border-[#A1A19D]")}>
                   {singlePage && <CheckSquare className="w-3.5 h-3.5 text-white" />}
                 </div>
@@ -393,12 +386,12 @@ export function HtmlToPdfTool() {
         <div className="p-5 bg-muted/40 border-t border-border flex-shrink-0">
           <button
             onClick={handleConvert}
-            disabled={converting || !inputValue.trim()}
+            disabled={unavailable || converting || !inputValue.trim()}
             className={cn(
               "w-full h-14 rounded-xl font-bold text-[15px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]",
               converting
                 ? "bg-[#2563EB]/80 text-white cursor-wait"
-                : !inputValue.trim()
+                : unavailable || !inputValue.trim()
                 ? "bg-[#D1D1CE] text-white cursor-not-allowed shadow-none"
                 : "bg-[#2563EB] hover:bg-[#1D4ED8] text-white hover:shadow-lg"
             )}

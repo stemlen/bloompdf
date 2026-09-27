@@ -6,9 +6,10 @@ import {
   ChevronLeft, ChevronRight, Presentation
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import * as pdfjsLib from 'pdfjs-dist';
 import { loadPdfForRendering, renderPageToDataURL } from "@/lib/pdfRender";
-import { PDFDocument, PageSizes, degrees } from "pdf-lib";
+import { PDFDocument, PageSizes } from "pdf-lib";
+import { CONVERT_ENABLED, ConvertUnavailableError, convertWithBackend } from "@/lib/convertApi";
+import { ConvertUnavailable } from "./ConvertUnavailable";
 
 type PageSize = "A4" | "Letter" | "Legal" | "A3";
 type Margins = "none" | "small" | "medium" | "large";
@@ -23,6 +24,8 @@ export function PptxToPdfTool() {
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPreviewSlide, setCurrentPreviewSlide] = useState(0);
+  // Backend disabled at build time, or found missing at runtime.
+  const [unavailable, setUnavailable] = useState(!CONVERT_ENABLED);
 
   // Settings
   const [pageSize, setPageSize] = useState<PageSize>("A4");
@@ -36,7 +39,9 @@ export function PptxToPdfTool() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (uploadedFile: File) => {
-    if (!uploadedFile.name.endsWith('.ppt') && !uploadedFile.name.endsWith('.pptx')) {
+    if (unavailable) return;
+    const lowerName = uploadedFile.name.toLowerCase();
+    if (!lowerName.endsWith('.ppt') && !lowerName.endsWith('.pptx')) {
       setError("Please upload a .ppt or .pptx file.");
       return;
     }
@@ -49,20 +54,7 @@ export function PptxToPdfTool() {
     setCurrentPreviewSlide(0);
 
     try {
-      const formData = new FormData();
-      formData.append("file", uploadedFile);
-
-      const res = await fetch("/api/pptx-to-pdf", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to convert presentation");
-      }
-
-      const blob = await res.blob();
+      const blob = await convertWithBackend({ type: "powerpoint", target: "pdf", file: uploadedFile });
       setBasePdfBlob(blob);
 
       // Render thumbnails
@@ -80,7 +72,12 @@ export function PptxToPdfTool() {
       
       setThumbnails(newThumbnails);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof ConvertUnavailableError) {
+        setUnavailable(true);
+        setFile(null);
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -167,13 +164,6 @@ export function PptxToPdfTool() {
           throw new Error("Coordinates calculated as NaN");
         }
         
-        console.log("Rendering embedded page:", {
-          embeddedPage: !!embeddedPage,
-          origWidth, origHeight,
-          pageWidth: width, pageHeight: height,
-          scale, drawWidth, drawHeight, x, y
-        });
-
         newPage.drawPage(embeddedPage, {
           x,
           y,
@@ -192,7 +182,7 @@ export function PptxToPdfTool() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during conversion.");
     } finally {
@@ -222,8 +212,15 @@ export function PptxToPdfTool() {
       {/* ── Left Panel (Preview & Input Area) ─────────────────────────────────── */}
       <div className="flex-1 flex flex-col relative min-h-0 h-full overflow-hidden">
         
+        {/* Backend unavailable */}
+        {unavailable && (
+          <div className="absolute inset-0 flex items-center justify-center p-4 md:p-10 overflow-y-auto">
+            <ConvertUnavailable toolName="PowerPoint to PDF" />
+          </div>
+        )}
+
         {/* Upload Area */}
-        {(!loading && !file) && (
+        {(!unavailable && !loading && !file) && (
           <div className="absolute inset-0 flex items-center justify-center p-6 md:p-10">
             <div 
               className="w-full max-w-2xl bg-card border-2 border-dashed rounded-3xl p-8 md:p-16 flex flex-col items-center justify-center text-center transition-all border-[#D1D1CE] hover:border-[#F59E0B] hover:bg-[#FFFBEB] cursor-pointer group shadow-sm"
@@ -257,7 +254,7 @@ export function PptxToPdfTool() {
         )}
 
         {/* File Info and Previews */}
-        {(loading || file) && (
+        {(!unavailable && (loading || file)) && (
           <div className="flex-1 flex flex-col overflow-hidden h-full bg-[#1A1A1A]">
             {/* Header overlay for the preview */}
             <div className="h-14 px-4 border-b border-[#333] flex items-center justify-between bg-[#222] z-10 flex-shrink-0">

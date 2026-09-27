@@ -7,6 +7,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadPdfForRendering, renderPageToDataURL } from "@/lib/pdfRender";
+import { CONVERT_ENABLED, ConvertUnavailableError, convertWithBackend } from "@/lib/convertApi";
+import { getXlsxSheetNames } from "@/lib/xlsxSheets";
+import { ConvertUnavailable } from "./ConvertUnavailable";
 
 export function ExcelToPdfTool() {
   const [file, setFile] = useState<File | null>(null);
@@ -15,6 +18,8 @@ export function ExcelToPdfTool() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPreviewSlide, setCurrentPreviewSlide] = useState(0);
+  // Backend disabled at build time, or found missing at runtime.
+  const [unavailable, setUnavailable] = useState(!CONVERT_ENABLED);
 
   // Settings
   const [availableSheets, setAvailableSheets] = useState<string[]>([]);
@@ -26,7 +31,9 @@ export function ExcelToPdfTool() {
   const isXls = file?.name.toLowerCase().endsWith(".xls");
 
   const handleFileUpload = async (uploadedFile: File) => {
-    if (!uploadedFile.name.endsWith('.xls') && !uploadedFile.name.endsWith('.xlsx')) {
+    if (unavailable) return;
+    const lowerName = uploadedFile.name.toLowerCase();
+    if (!lowerName.endsWith('.xls') && !lowerName.endsWith('.xlsx')) {
       setError("Please upload an .xls or .xlsx file.");
       return;
     }
@@ -42,23 +49,12 @@ export function ExcelToPdfTool() {
     setSelectedSheets([]);
 
     try {
-      // Analyze file to get sheets if xlsx
-      if (uploadedFile.name.toLowerCase().endsWith('.xlsx')) {
-        const formData = new FormData();
-        formData.append("file", uploadedFile);
-        formData.append("action", "analyze");
-
-        const analyzeRes = await fetch("/api/excel-to-pdf", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (analyzeRes.ok) {
-          const { sheets } = await analyzeRes.json();
-          if (sheets && sheets.length > 0) {
-            setAvailableSheets(sheets);
-            setSelectedSheets([...sheets]); // Select all by default
-          }
+      // List worksheets locally (no upload needed) for .xlsx files
+      if (lowerName.endsWith('.xlsx')) {
+        const sheets = await getXlsxSheetNames(uploadedFile);
+        if (sheets.length > 0) {
+          setAvailableSheets(sheets);
+          setSelectedSheets([...sheets]); // Select all by default
         }
       }
 
@@ -72,25 +68,12 @@ export function ExcelToPdfTool() {
 
   const convertFile = async (targetFile: File, mode: "all" | "selected", sheets: string[]) => {
     try {
-      const formData = new FormData();
-      formData.append("file", targetFile);
-      formData.append("action", "convert");
-      
-      if (mode === "selected" && sheets.length > 0) {
-        formData.append("selectedSheets", JSON.stringify(sheets));
-      }
-
-      const res = await fetch("/api/excel-to-pdf", {
-        method: "POST",
-        body: formData,
+      const blob = await convertWithBackend({
+        type: "excel",
+        target: "pdf",
+        file: targetFile,
+        options: mode === "selected" && sheets.length > 0 ? { sheets } : undefined,
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to convert spreadsheet");
-      }
-
-      const blob = await res.blob();
       setPdfBlob(blob);
 
       // Render thumbnails
@@ -107,7 +90,12 @@ export function ExcelToPdfTool() {
       
       setThumbnails(newThumbnails);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof ConvertUnavailableError) {
+        setUnavailable(true);
+        setFile(null);
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
     }
   };
 
@@ -129,7 +117,7 @@ export function ExcelToPdfTool() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   };
 
   const toggleSheet = (sheetName: string) => {
@@ -145,8 +133,15 @@ export function ExcelToPdfTool() {
       {/* ── Left Panel (Preview & Input Area) ─────────────────────────────────── */}
       <div className="flex-1 flex flex-col relative min-h-0 h-full overflow-hidden">
         
+        {/* Backend unavailable */}
+        {unavailable && (
+          <div className="absolute inset-0 flex items-center justify-center p-4 md:p-10 overflow-y-auto">
+            <ConvertUnavailable toolName="Excel to PDF" />
+          </div>
+        )}
+
         {/* Upload Area */}
-        {(!loading && !file) && (
+        {(!unavailable && !loading && !file) && (
           <div className="absolute inset-0 flex items-center justify-center p-6 md:p-10">
             <div 
               className="w-full max-w-2xl bg-card border-2 border-dashed rounded-3xl p-8 md:p-16 flex flex-col items-center justify-center text-center transition-all border-[#D1D1CE] hover:border-[#2563EB] hover:bg-[#F9FAFB] cursor-pointer group shadow-sm"
@@ -180,7 +175,7 @@ export function ExcelToPdfTool() {
         )}
 
         {/* File Info and Previews */}
-        {(loading || file) && (
+        {(!unavailable && (loading || file)) && (
           <div className="flex-1 flex flex-col overflow-hidden h-full bg-[#1A1A1A]">
             {/* Header overlay for the preview */}
             <div className="h-14 px-4 border-b border-[#333] flex items-center justify-between bg-[#222] z-10 flex-shrink-0">
