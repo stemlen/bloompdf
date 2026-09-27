@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import {
   Lock, AlertCircle, Loader2, Download, Upload, Shield, Eye, EyeOff, File
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { protectPDF } from "@/lib/protectPdf";
 
 export function ProtectPdfTool() {
   const [file, setFile] = useState<File | null>(null);
@@ -13,12 +14,22 @@ export function ProtectPdfTool() {
   const [showPassword, setShowPassword] = useState(false);
   const [protecting, setProtecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [successFile, setSuccessFile] = useState<{ url: string, name: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (uploadedFile: File) => {
-    if (uploadedFile.type !== "application/pdf") {
+  // Release the object URL of the protected file when it is replaced/unmounted.
+  useEffect(() => {
+    return () => {
+      if (successFile?.url) URL.revokeObjectURL(successFile.url);
+    };
+  }, [successFile]);
+
+  const handleFileUpload = (uploadedFile: File | undefined) => {
+    if (!uploadedFile) return;
+    // Some OS/browser combos report an empty MIME type, so accept the extension too.
+    if (uploadedFile.type !== "application/pdf" && !uploadedFile.name.toLowerCase().endsWith(".pdf")) {
       setError("Please upload a valid PDF file.");
       return;
     }
@@ -27,6 +38,12 @@ export function ProtectPdfTool() {
     setSuccessFile(null);
     setPassword("");
     setConfirmPassword("");
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFileUpload(e.dataTransfer.files?.[0]);
   };
 
   const handleProtect = async () => {
@@ -44,25 +61,13 @@ export function ProtectPdfTool() {
     setError(null);
     
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("password", password);
-
-      const res = await fetch("/api/protect-pdf", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to protect PDF.");
-      }
-
-      const blob = await res.blob();
+      // 100% client-side AES-256 encryption: the file never leaves the browser.
+      const protectedBytes = await protectPDF(file, { userPassword: password });
+      const blob = new Blob([protectedBytes as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       setSuccessFile({
         url,
-        name: file.name.replace(/\.pdf$/i, "_protected.pdf")
+        name: file.name.replace(/\.pdf$/i, "") + "_protected.pdf"
       });
       
     } catch (err) {
@@ -137,10 +142,18 @@ export function ProtectPdfTool() {
   return (
     <div className="flex flex-col md:flex-row w-full h-full bg-muted relative overflow-hidden">
       {/* ── Left Panel (Upload Area) ─────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative min-h-[50vh]">
+      <div
+        className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative min-h-[50vh]"
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false); }}
+        onDrop={handleDrop}
+      >
         {!file ? (
           <div 
-            className="w-full max-w-2xl bg-card border-2 border-dashed border-[#E5E5E3] rounded-3xl p-12 flex flex-col items-center text-center cursor-pointer hover:border-[#E8607A] transition-colors"
+            className={cn(
+              "w-full max-w-2xl bg-card border-2 border-dashed rounded-3xl p-6 sm:p-12 flex flex-col items-center text-center cursor-pointer hover:border-[#E8607A] transition-colors",
+              isDragOver ? "border-[#E8607A]" : "border-[#E5E5E3]"
+            )}
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
@@ -161,7 +174,8 @@ export function ProtectPdfTool() {
               {(file.size / 1024 / 1024).toFixed(2)} MB
             </p>
             <button
-              onClick={() => setFile(null)}
+              onClick={() => { setFile(null); setError(null); }}
+              disabled={protecting}
               className="px-6 py-2 rounded-full font-bold text-[13px] bg-muted text-foreground hover:bg-[#E5E5E3] transition-colors"
             >
               Choose different file
@@ -171,7 +185,11 @@ export function ProtectPdfTool() {
         <input
           type="file"
           ref={fileInputRef}
-          onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+          onChange={(e) => {
+            handleFileUpload(e.target.files?.[0]);
+            // Reset so re-selecting the same file fires onChange again.
+            e.target.value = "";
+          }}
           accept=".pdf"
           className="hidden"
         />
@@ -209,6 +227,8 @@ export function ProtectPdfTool() {
                   className="w-full h-12 pl-4 pr-12 border border-[#E5E5E3] rounded-xl text-[14px] focus:outline-none focus:border-[#E8607A] bg-card transition-colors"
                 />
                 <button 
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-3 text-[#A1A19D] hover:text-foreground transition-colors"
                 >
@@ -253,7 +273,7 @@ export function ProtectPdfTool() {
             <div className="bg-muted rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-3 text-[13px] font-medium text-foreground">
                 <Shield className="w-4 h-4 text-[#10B981]" />
-                Encryption Enabled (AES)
+                Encryption Enabled (AES-256, in your browser)
               </div>
               <div className="flex items-center gap-3 text-[13px] font-medium text-foreground">
                 <Lock className="w-4 h-4 text-[#E8607A]" />
