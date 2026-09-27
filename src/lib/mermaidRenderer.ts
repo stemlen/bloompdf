@@ -138,6 +138,7 @@ export async function renderMermaidInElement(
       try {
         const { svg } = await mermaid.render(uniqueId, rawCode);
         el.innerHTML = `<div class="mermaid-svg-wrapper">${svg}</div>`;
+        fitViewBoxToContent(el.querySelector("svg"));
         el.setAttribute("data-rendered", "true");
         el.classList.add("mermaid-rendered");
       } catch (err: any) {
@@ -157,6 +158,27 @@ export async function renderMermaidInElement(
     }
   } catch (err) {
     console.error("Error in renderMermaidInElement:", err);
+  }
+}
+
+/**
+ * Mermaid 10 can emit a viewBox that is offset from the drawing (e.g.
+ * "-95.5 -61.5 263.5 334" for content at 0,0 175×309), which pushed diagrams
+ * to the right and cropped them in the preview and in the exported PDF.
+ * Re-derive the viewBox from the rendered content once it is in the DOM.
+ */
+function fitViewBoxToContent(svg: SVGSVGElement | null): void {
+  if (!svg) return;
+  try {
+    const root = svg.querySelector(":scope > g") as SVGGraphicsElement | null;
+    const bb = root?.getBBox();
+    if (!bb || bb.width <= 0 || bb.height <= 0) return;
+    const pad = 8;
+    const vb = [bb.x - pad, bb.y - pad, bb.width + pad * 2, bb.height + pad * 2];
+    svg.setAttribute("viewBox", vb.map((v) => Math.round(v * 100) / 100).join(" "));
+    svg.style.maxWidth = `${vb[2]}px`;
+  } catch {
+    // getBBox() throws for detached/hidden elements: keep Mermaid's viewBox.
   }
 }
 
