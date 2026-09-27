@@ -437,6 +437,7 @@ function drawInvisibleWords(
     renderer.drawLine(page, text, x, baseline, fontSize, renderer.isRtl(text), {
       invisible: true,
       horizontalScale: squeeze,
+      leadingSpace: true,
     });
     drawn++;
   }
