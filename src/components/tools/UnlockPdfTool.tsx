@@ -14,6 +14,7 @@ export function UnlockPdfTool() {
   const [unlocking, setUnlocking] = useState(false);
   const [isEncrypted, setIsEncrypted] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [successFile, setSuccessFile] = useState<{ url: string, name: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,7 +27,8 @@ export function UnlockPdfTool() {
     };
   }, [successFile]);
 
-  const handleFileUpload = async (uploadedFile: File) => {
+  const handleFileUpload = async (uploadedFile: File | undefined) => {
+    if (!uploadedFile) return;
     if (uploadedFile.type !== "application/pdf" && !uploadedFile.name.toLowerCase().endsWith(".pdf")) {
       setError("Please upload a valid PDF file.");
       return;
@@ -35,6 +37,7 @@ export function UnlockPdfTool() {
     setError(null);
     setSuccessFile(null);
     setPassword("");
+    setIsEncrypted(null);
     
     // Check encryption status
     try {
@@ -43,6 +46,12 @@ export function UnlockPdfTool() {
     } catch {
       setIsEncrypted(null);
     }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFileUpload(e.dataTransfer.files?.[0]);
   };
 
   const handleUnlock = async () => {
@@ -56,47 +65,16 @@ export function UnlockPdfTool() {
     setError(null);
     
     try {
-      // 1. Try instant client-side decryption first
-      try {
-        const decryptedBytes = await unlockPDF(file, password);
-        const blob = new Blob([decryptedBytes as unknown as BlobPart], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        setSuccessFile({
-          url,
-          name: file.name.replace(/\.pdf$/i, "_unlocked.pdf")
-        });
-        return;
-      } catch (clientErr: any) {
-        const errMsg = clientErr?.message?.toLowerCase() || "";
-        // If it's a definite incorrect password, report it directly
-        if (errMsg.includes("incorrect password") || errMsg.includes("password incorrect")) {
-          throw clientErr;
-        }
-
-        // Otherwise attempt server-side fallback
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("password", password);
-
-        const res = await fetch("/api/unlock-pdf", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Failed to unlock PDF. Please check the password and try again.");
-        }
-
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        setSuccessFile({
-          url,
-          name: file.name.replace(/\.pdf$/i, "_unlocked.pdf")
-        });
-      }
+      // 100% client-side decryption: the file and password never leave the browser.
+      const decryptedBytes = await unlockPDF(file, password);
+      const blob = new Blob([decryptedBytes as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      setSuccessFile({
+        url,
+        name: file.name.replace(/\.pdf$/i, "") + "_unlocked.pdf"
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "Failed to unlock PDF. Please check the password and try again.");
     } finally {
       setUnlocking(false);
     }
@@ -151,10 +129,18 @@ export function UnlockPdfTool() {
   return (
     <div className="flex flex-col md:flex-row w-full h-full bg-muted relative overflow-hidden">
       {/* ── Left Panel (Upload Area) ─────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative min-h-[50vh]">
+      <div
+        className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative min-h-[50vh]"
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false); }}
+        onDrop={handleDrop}
+      >
         {!file ? (
           <div 
-            className="w-full max-w-2xl bg-card border-2 border-dashed border-[#E5E5E3] rounded-3xl p-12 flex flex-col items-center text-center cursor-pointer hover:border-[#E8607A] transition-colors"
+            className={cn(
+              "w-full max-w-2xl bg-card border-2 border-dashed rounded-3xl p-6 sm:p-12 flex flex-col items-center text-center cursor-pointer hover:border-[#E8607A] transition-colors",
+              isDragOver ? "border-[#E8607A]" : "border-[#E5E5E3]"
+            )}
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
@@ -178,7 +164,8 @@ export function UnlockPdfTool() {
               {(file.size / 1024 / 1024).toFixed(2)} MB
             </p>
             <button
-              onClick={() => setFile(null)}
+              onClick={() => { setFile(null); setError(null); setIsEncrypted(null); }}
+              disabled={unlocking}
               className="px-6 py-2 rounded-full font-bold text-[13px] bg-muted text-foreground hover:bg-[#E5E5E3] transition-colors"
             >
               Choose different file
@@ -188,7 +175,11 @@ export function UnlockPdfTool() {
         <input
           type="file"
           ref={fileInputRef}
-          onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+          onChange={(e) => {
+            handleFileUpload(e.target.files?.[0]);
+            // Reset so re-selecting the same file fires onChange again.
+            e.target.value = "";
+          }}
           accept=".pdf"
           className="hidden"
         />
@@ -210,6 +201,13 @@ export function UnlockPdfTool() {
             </div>
           )}
 
+          {file && isEncrypted === false && !error && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-[#ECFDF5] rounded-xl border border-[#10B981]/20 text-[#065F46] shadow-sm">
+              <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+              <p className="text-[13px] font-bold">This PDF is not password-protected, so there is nothing to unlock.</p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <h4 className="text-[13px] font-bold text-foreground uppercase tracking-wider">PDF Password</h4>
             <p className="text-[13px] text-muted-foreground">
@@ -224,13 +222,15 @@ export function UnlockPdfTool() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !unlocking && file && password) {
+                    if (e.key === "Enter" && !unlocking && file && password && isEncrypted !== false) {
                       handleUnlock();
                     }
                   }}
                   className="w-full h-12 pl-4 pr-12 border border-[#E5E5E3] rounded-xl text-[14px] focus:outline-none focus:border-[#E8607A] bg-card transition-colors"
                 />
                 <button 
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-3 text-[#A1A19D] hover:text-foreground transition-colors"
                 >
@@ -245,7 +245,7 @@ export function UnlockPdfTool() {
             <div className="bg-muted rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-3 text-[13px] font-medium text-foreground">
                 <AlertCircle className="w-4 h-4 text-[#E8607A]" />
-                Password Protected: {!file ? "Waiting for file" : isEncrypted === true ? "Yes (Protected)" : isEncrypted === false ? "No (Not Protected)" : "Protected"}
+                Password Protected: {!file ? "Waiting for file" : isEncrypted === true ? "Yes (Protected)" : isEncrypted === false ? "No (Not Protected)" : "Checking..."}
               </div>
               <div className="flex items-center gap-3 text-[13px] font-medium text-foreground">
                 <ShieldCheck className="w-4 h-4 text-[#10B981]" />
@@ -260,12 +260,12 @@ export function UnlockPdfTool() {
         <div className="p-6 bg-muted/40 border-t border-border flex-shrink-0">
           <button
             onClick={handleUnlock}
-            disabled={unlocking || !file || !password}
+            disabled={unlocking || !file || !password || isEncrypted === false}
             className={cn(
               "w-full h-14 rounded-xl font-bold text-[15px] flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]",
               unlocking
                 ? "bg-[#E8607A]/80 text-white cursor-wait"
-                : !file || !password
+                : !file || !password || isEncrypted === false
                 ? "bg-[#D1D1CE] text-white cursor-not-allowed shadow-none"
                 : "bg-[#E8607A] hover:bg-[#D64E68] text-white hover:shadow-lg"
             )}
