@@ -13,7 +13,7 @@ import type { LucideIcon } from "lucide-react";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useRecent } from "@/lib/hooks/useRecent";
 import { categories, getCategoryById, getCategoryBgStyle } from "@/lib/categories";
-import { getToolsByCategory, tools as allTools } from "@/lib/tools";
+import { getToolsByCategory, listedTools, isToolListed } from "@/lib/tools";
 import { CategorySection } from "@/components/dashboard/CategorySection";
 import { AboutSection } from "@/components/dashboard/AboutSection";
 import { ToolCard } from "@/components/dashboard/ToolCard";
@@ -90,13 +90,16 @@ export default function HomePage() {
   const { recentTools, mounted: recentMounted } = useRecent();
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
-  const popularTools = POPULAR_SLUGS
+  const popularTools = (POPULAR_SLUGS
     .map((slug) => getToolBySlug(slug))
-    .filter(Boolean) as NonNullable<ReturnType<typeof getToolBySlug>>[];
+    .filter(Boolean) as NonNullable<ReturnType<typeof getToolBySlug>>[])
+    .filter(isToolListed);
 
+  // Categories whose tools are all "coming soon" are hidden entirely.
+  const visibleCategories = categories.filter((c) => getToolsByCategory(c.id).length > 0);
   const filteredCategories = activeCategory === "all"
-    ? categories
-    : categories.filter((c) => c.id === activeCategory);
+    ? visibleCategories
+    : visibleCategories.filter((c) => c.id === activeCategory);
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -132,7 +135,7 @@ export default function HomePage() {
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-3.5 py-1.5 mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E8607A] flex-shrink-0 animate-bloom-pulse" />
                 <span className="text-[12px] font-semibold text-primary">
-                  {allTools.length} tools · 100% Free & Open Source · No sign-up
+                  {listedTools.length} tools · 100% Free & Open Source · No sign-up
                 </span>
               </div>
 
@@ -462,7 +465,7 @@ export default function HomePage() {
               >
                 All categories
               </button>
-              {categories.map((cat) => {
+              {visibleCategories.map((cat) => {
                 const Icon = categoryIcons[cat.id] ?? LayoutGrid;
                 const isActive = activeCategory === cat.id;
                 return (

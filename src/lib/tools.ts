@@ -1,3 +1,5 @@
+import { CONVERT_ENABLED } from "./convertApi";
+
 export type OptionType =
   | "slider"
   | "select"
@@ -37,10 +39,18 @@ export interface Tool {
   layoutType?: "workspace" | "form";
   externalUrl?: string;
   /**
-   * Listed but not implemented yet: the tool page shows a "coming soon"
-   * notice, is excluded from sitemap.xml and is marked noindex.
+   * Not implemented yet. The page stays reachable by URL (it shows a "coming
+   * soon" notice and is noindex), but the tool is hidden from the homepage,
+   * the nav menus, search and sitemap.xml. To launch a tool, delete this line
+   * from its entry below — see isToolListed() / isToolInSitemap().
    */
   comingSoon?: boolean;
+  /**
+   * Needs the server-side conversion backend (/api/convert). Until the build
+   * sets NEXT_PUBLIC_CONVERT_ENABLED=true the page shows "temporarily
+   * unavailable" and the tool is left out of sitemap.xml.
+   */
+  requiresConvertBackend?: boolean;
 }
 
 export const tools: Tool[] = [
@@ -330,6 +340,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "word-to-pdf",
+    requiresConvertBackend: true,
     name: "Word to PDF",
     shortName: "Word → PDF",
     description: "Convert Word documents to PDF format",
@@ -346,6 +357,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "powerpoint-to-pdf",
+    requiresConvertBackend: true,
     name: "PowerPoint to PDF",
     shortName: "PPT → PDF",
     description: "Convert PowerPoint presentations to PDF",
@@ -362,6 +374,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "excel-to-pdf",
+    requiresConvertBackend: true,
     name: "Excel to PDF",
     shortName: "Excel → PDF",
     description: "Convert Excel spreadsheets to PDF",
@@ -378,6 +391,7 @@ export const tools: Tool[] = [
   },
   {
     slug: "html-to-pdf",
+    requiresConvertBackend: true,
     name: "HTML to PDF",
     shortName: "HTML → PDF",
     description: "Convert web pages and HTML files to PDF",
@@ -810,6 +824,34 @@ export function getToolBySlug(slug: string): Tool | undefined {
   return tools.find((t) => t.slug === slug);
 }
 
+// ─── Availability: the single source of truth ─────────────────────────────
+// Everything that lists tools (homepage grid, popular tools, nav menus,
+// search, sitemap.xml) goes through these helpers, so launching a tool is a
+// one-line change to its entry above (remove `comingSoon: true`).
+
+/** Built and shown on the homepage, in the nav menus and in search results. */
+export function isToolListed(tool: Tool): boolean {
+  return !tool.comingSoon;
+}
+
+/** Usable in this build: listed, and its backend (if any) is enabled. */
+export function isToolAvailable(tool: Tool): boolean {
+  return isToolListed(tool) && !(tool.requiresConvertBackend && !CONVERT_ENABLED);
+}
+
+/** Included in sitemap.xml: only tools a visitor can actually use. */
+export function isToolInSitemap(tool: Tool): boolean {
+  return isToolAvailable(tool);
+}
+
+export function isSlugListed(slug: string): boolean {
+  const tool = getToolBySlug(slug);
+  return !!tool && isToolListed(tool);
+}
+
+/** Tools shown to visitors (coming-soon tools excluded). */
+export const listedTools: Tool[] = tools.filter(isToolListed);
+
 export function getToolUrl(slug: string): string {
   if (slug === "edit-pdf") {
     return "https://editor.bloompdf.app/";
@@ -817,14 +859,16 @@ export function getToolUrl(slug: string): string {
   return `/tools/${slug}`;
 }
 
+/** Listed tools of a category (coming-soon tools excluded). */
 export function getToolsByCategory(categoryId: string): Tool[] {
-  return tools.filter((t) => t.categoryId === categoryId);
+  return listedTools.filter((t) => t.categoryId === categoryId);
 }
 
+/** Searches listed tools only (coming-soon tools are not offered). */
 export function searchTools(query: string): Tool[] {
   const q = query.toLowerCase().trim();
-  if (!q) return tools;
-  return tools.filter(
+  if (!q) return listedTools;
+  return listedTools.filter(
     (t) =>
       t.name.toLowerCase().includes(q) ||
       t.description.toLowerCase().includes(q) ||

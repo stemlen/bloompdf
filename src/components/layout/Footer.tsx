@@ -1,6 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getToolUrl } from "@/lib/tools";
+import { getToolUrl, getToolsByCategory, isSlugListed } from "@/lib/tools";
+
+// Coming-soon tools (and homepage categories that only contain them) are
+// hidden everywhere they'd be advertised; see isToolListed in lib/tools.
+const isListedHref = (href: string) =>
+  href.startsWith("/tools/")
+    ? isSlugListed(href.slice("/tools/".length))
+    : href.startsWith("/#")
+      ? getToolsByCategory(href.slice(2)).length > 0
+      : true;
 import { 
   Github, 
   Linkedin, 
@@ -74,7 +83,7 @@ export function Footer() {
                 { name: "PowerPoint to PDF", slug: "powerpoint-to-pdf" },
                 { name: "Edit PDF", slug: "edit-pdf" },
                 { name: "Protect PDF", slug: "protect-pdf" },
-              ].map((item) => (
+              ].filter((item) => isSlugListed(item.slug)).map((item) => (
                 <li key={item.slug}>
                   <Link href={getToolUrl(item.slug)} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
                     {item.name}
@@ -112,7 +121,7 @@ export function Footer() {
                   { label: "Optimize PDF", href: "/#optimize" },
                   { label: "Convert to PDF", href: "/#convert-to" },
                   { label: "Convert from PDF", href: "/#convert-from" },
-                ].map((item) => (
+                ].filter((item) => isListedHref(item.href)).map((item) => (
                   <li key={item.label}>
                     <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
                       {item.label}
@@ -166,7 +175,7 @@ export function Footer() {
                   { label: "Protect PDF", href: "/tools/protect-pdf" },
                   { label: "Unlock PDF", href: "/tools/unlock-pdf" },
                   { label: "PDF Forms", href: "/tools/pdf-forms" },
-                ].map((item) => (
+                ].filter((item) => isListedHref(item.href)).map((item) => (
                   <li key={item.label}>
                     <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
                       {item.label}
@@ -182,7 +191,7 @@ export function Footer() {
                   { label: "JPG to PDF", href: "/tools/jpg-to-pdf" },
                   { label: "PDF to JPG", href: "/tools/pdf-to-jpg" },
                   { label: "HTML to PDF", href: "/tools/html-to-pdf" },
-                ].map((item) => (
+                ].filter((item) => isListedHref(item.href)).map((item) => (
                   <li key={item.label}>
                     <Link href={item.href} className="text-[13px] text-muted-foreground hover:text-[#E8607A] transition-colors font-medium">
                       {item.label}

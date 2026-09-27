@@ -47,7 +47,7 @@ import { useSearch } from "@/lib/hooks/useSearch";
 import type { LucideIcon } from "lucide-react";
 import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
 import { ToolIcon } from "@/components/icons/ToolIcons";
-import { getToolUrl } from "@/lib/tools";
+import { getToolUrl, isSlugListed } from "@/lib/tools";
 import { ThemeToggle } from "./ThemeToggle";
 
 function CustomEditIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -103,7 +103,7 @@ const iconMap: Record<string, LucideIcon> = {
   Archive, PenLine, RotateCw, Hash, Droplets, Crop, ClipboardList,
 };
 
-const allPdfCategories: MegaCategory[] = [
+const pdfCategoryMenu: MegaCategory[] = [
   {
     id: "organize",
     label: "Organize PDF",
@@ -197,6 +197,14 @@ const allPdfCategories: MegaCategory[] = [
     ],
   },
 ];
+
+// Coming-soon tools are hidden from every menu (see isToolListed in
+// lib/tools.ts); categories left empty are dropped.
+const allPdfCategories: MegaCategory[] = pdfCategoryMenu
+  .map((cat) => ({ ...cat, tools: cat.tools.filter((t) => isSlugListed(t.slug)) }))
+  .filter((cat) => cat.tools.length > 0);
+const convertToTools = allPdfCategories.find((c) => c.id === "convert-to")?.tools ?? [];
+const convertFromTools = allPdfCategories.find((c) => c.id === "convert-from")?.tools ?? [];
 
 // ─── Mega-menu sub-components ─────────────────────────────────────────────
 
@@ -606,7 +614,7 @@ export function TopNav() {
             aria-label="Convert PDF"
           >
             <div className="max-w-screen-xl mx-auto px-6 py-6">
-              <div className="grid grid-cols-2 gap-8">
+              <div className={convertFromTools.length > 0 ? "grid grid-cols-2 gap-8" : "grid grid-cols-1 gap-8 max-w-xl"}>
 
                 {/* ── Convert TO PDF ─── */}
                 <div>
@@ -625,7 +633,7 @@ export function TopNav() {
                   </div>
 
                   <div className="space-y-0.5">
-                    {(allPdfCategories.find((c) => c.id === "convert-to")?.tools || []).map((tool) => {
+                    {convertToTools.map((tool) => {
                       return (
                         <Link
                           key={tool.slug}
@@ -652,6 +660,7 @@ export function TopNav() {
                 </div>
 
                 {/* ── Convert FROM PDF ─── */}
+                {convertFromTools.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
@@ -668,7 +677,7 @@ export function TopNav() {
                   </div>
 
                   <div className="space-y-0.5">
-                    {(allPdfCategories.find((c) => c.id === "convert-from")?.tools || []).map((tool) => {
+                    {convertFromTools.map((tool) => {
                       return (
                         <Link
                           key={tool.slug}
@@ -693,6 +702,7 @@ export function TopNav() {
                     })}
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Footer */}
