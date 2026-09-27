@@ -140,10 +140,10 @@ export function ProtectPdfTool() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row w-full h-full bg-muted relative overflow-hidden">
+    <div className="flex flex-col md:flex-row w-full h-full bg-muted relative overflow-y-auto md:overflow-hidden">
       {/* ── Left Panel (Upload Area) ─────────────────────────────────── */}
       <div
-        className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative min-h-[50vh]"
+        className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative min-h-[40vh] md:min-h-0"
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false); }}
         onDrop={handleDrop}
@@ -196,7 +196,7 @@ export function ProtectPdfTool() {
       </div>
 
       {/* ── Right Panel (Settings) ───────────────────────────────────────────── */}
-      <div className="w-full md:w-[320px] lg:w-[380px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
+      <div className="w-full md:w-[320px] lg:w-[380px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] md:h-full">
         <div className="px-6 py-5 border-b border-border bg-muted/40 flex items-center gap-3">
           <Shield className="w-5 h-5 text-[#E8607A]" />
           <h3 className="text-[15px] font-bold text-foreground">Security Settings</h3>

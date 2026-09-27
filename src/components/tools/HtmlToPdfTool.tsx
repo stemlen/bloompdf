@@ -122,6 +122,9 @@ export function HtmlToPdfTool() {
         {/* URL / HTML Input Area */}
         <div className="bg-card border-b border-[#E5E5E3] p-6 lg:p-8 flex-shrink-0 z-10 shadow-sm relative">
           <div className="max-w-4xl mx-auto">
+            {unavailable && (
+              <ConvertUnavailable toolName="HTML to PDF" compact className="md:hidden mb-4 max-w-none" />
+            )}
             <h2 className="text-[20px] font-bold text-foreground mb-2">Convert Web Page to PDF</h2>
             <p className="text-[14px] text-muted-foreground mb-6">Enter a URL or paste raw HTML code to generate a high-quality PDF document.</p>
             
@@ -195,8 +198,8 @@ export function HtmlToPdfTool() {
         {/* Preview Area */}
         <div className="flex-1 flex flex-col bg-muted/40 relative overflow-hidden">
           {unavailable ? (
-            <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8 overflow-y-auto">
-              <ConvertUnavailable toolName="HTML to PDF" />
+            <div className="absolute inset-0 hidden md:flex p-4 md:p-8 overflow-y-auto">
+              <ConvertUnavailable toolName="HTML to PDF" className="m-auto" />
             </div>
           ) : previewImage ? (
             <div className="absolute inset-0 flex items-start justify-center p-8 overflow-y-auto custom-scrollbar bg-[#F3F3F2]">

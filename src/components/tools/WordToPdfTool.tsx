@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import {
-  FileText, Settings, Loader2, Download, AlertCircle, CheckSquare, 
+  FileText, Settings, Loader2, Download, AlertCircle,
   ChevronLeft, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -89,8 +89,8 @@ export function WordToPdfTool() {
         
         {/* Backend unavailable */}
         {unavailable && (
-          <div className="absolute inset-0 flex items-center justify-center p-4 md:p-10 overflow-y-auto">
-            <ConvertUnavailable toolName="Word to PDF" />
+          <div className="absolute inset-0 flex p-4 md:p-10 overflow-y-auto">
+            <ConvertUnavailable toolName="Word to PDF" className="m-auto" />
           </div>
         )}
 
@@ -232,7 +232,7 @@ export function WordToPdfTool() {
       </div>
 
       {/* ── Right Panel (Settings) ───────────────────────────────────────────── */}
-      <div className="w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full">
+      <div className={cn("w-full md:w-[280px] lg:w-[320px] bg-card border-t md:border-t-0 md:border-l border-border flex-col flex-shrink-0 z-20 shadow-[0_-4px_24px_rgba(0,0,0,0.02)] lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] h-[50vh] md:h-full", unavailable ? "hidden md:flex" : "flex")}>
         <div className="px-5 py-4 border-b border-border flex-shrink-0 bg-muted/40 flex items-center gap-2">
           <Settings className="w-4 h-4 text-[#2563EB]" />
           <h3 className="text-[14px] font-bold text-foreground">Settings</h3>
