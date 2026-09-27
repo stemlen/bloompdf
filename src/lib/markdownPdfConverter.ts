@@ -157,7 +157,6 @@ export async function convertMarkdownToPdfBlob(
     await new Promise((r) => setTimeout(r, 100));
 
     const markdownBody = container.querySelector(".markdown-body") as HTMLElement;
-    const renderedBodyHtml = markdownBody ? markdownBody.innerHTML : htmlContent;
     const totalContentHeightPx = Math.max(
       markdownBody ? markdownBody.scrollHeight : 100,
       markdownBody ? markdownBody.offsetHeight : 100,
@@ -196,50 +195,46 @@ export async function convertMarkdownToPdfBlob(
       .replace(/&lsquo;/g, "&#8216;")
       .replace(/&rsquo;/g, "&#8217;");
 
+    // The theme CSS contains characters such as "&" (e.g. in comments) that are
+    // illegal in XML text, so it is wrapped in CDATA; otherwise the SVG fails
+    // to parse and export silently fell back to the print dialog.
     const svgString = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${cssWidthPx}" height="${totalContentHeightPx}">
         <foreignObject width="100%" height="100%">
           <div xmlns="http://www.w3.org/1999/xhtml" style="background: ${bgColor}; width: ${cssWidthPx}px; min-height: ${totalContentHeightPx}px;">
-            <style>
-              ${themeCss}
+            <style><![CDATA[
+              ${themeCss.replace(/\]\]>/g, "] ]>")}
               *, *::before, *::after { box-sizing: border-box; }
               body { margin: 0; padding: 0; background: ${bgColor}; }
               .markdown-body { width: ${cssWidthPx}px !important; padding: 0 !important; margin: 0 !important; }
-            </style>
+            ]]></style>
             ${serializedBodyHtml.startsWith("<div") ? serializedBodyHtml : `<div class="markdown-body">${serializedBodyHtml}</div>`}
           </div>
         </foreignObject>
       </svg>
     `;
 
-    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    const svgUrl = URL.createObjectURL(svgBlob);
+    // Load the SVG from a data: URL. A blob: URL containing <foreignObject>
+    // taints the canvas in Chromium, which made toDataURL() throw and the
+    // export always fell back to the print dialog.
+    const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
 
     const fullImg = new Image();
     await new Promise<void>((resolve, reject) => {
       fullImg.onload = () => resolve();
-      fullImg.onerror = (e) => reject(new Error("Failed to render SVG image for PDF."));
+      fullImg.onerror = () => reject(new Error("Failed to render SVG image for PDF."));
       fullImg.src = svgUrl;
     });
-
-    URL.revokeObjectURL(svgUrl);
-
-    // 3. Render full document onto a master Canvas
-    const masterCanvas = document.createElement("canvas");
-    masterCanvas.width = cssWidthPx * scale;
-    masterCanvas.height = totalContentHeightPx * scale;
-    const masterCtx = masterCanvas.getContext("2d");
-    if (!masterCtx) throw new Error("Could not create 2D canvas context");
-
-    masterCtx.fillStyle = bgColor;
-    masterCtx.fillRect(0, 0, masterCanvas.width, masterCanvas.height);
-    masterCtx.drawImage(fullImg, 0, 0, masterCanvas.width, masterCanvas.height);
 
     onProgress?.(70, "Generating PDF pages...");
 
     // 4. Calculate smart page slices
+    // Pages are sliced straight from the SVG image instead of a single
+    // full-height master canvas, which exceeded browser canvas size limits
+    // (~16k px at 2x) on long documents and produced blank pages.
     const pageSliceHeightPx = cssHeightPx * scale;
-    const totalCanvasHeight = masterCanvas.height;
+    const pageCanvasWidth = Math.round(cssWidthPx * scale);
+    const totalCanvasHeight = totalContentHeightPx * scale;
     const estimatedPages = Math.max(1, Math.ceil(totalCanvasHeight / pageSliceHeightPx));
 
     // Create PDF Document
@@ -251,11 +246,11 @@ export async function convertMarkdownToPdfBlob(
 
     while (currentY < totalCanvasHeight) {
       pageIndex++;
-      let currentSliceH = Math.min(pageSliceHeightPx, totalCanvasHeight - currentY);
+      const currentSliceH = Math.min(pageSliceHeightPx, totalCanvasHeight - currentY);
 
       // Create a canvas for this page slice
       const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = masterCanvas.width;
+      pageCanvas.width = pageCanvasWidth;
       pageCanvas.height = pageSliceHeightPx;
       const pageCtx = pageCanvas.getContext("2d");
       if (!pageCtx) break;
@@ -264,11 +259,11 @@ export async function convertMarkdownToPdfBlob(
       pageCtx.fillStyle = bgColor;
       pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
 
-      // Draw the content slice
+      // Draw the content slice (source coordinates are in CSS px)
       pageCtx.drawImage(
-        masterCanvas,
-        0, currentY, masterCanvas.width, currentSliceH,
-        0, 0, masterCanvas.width, currentSliceH
+        fullImg,
+        0, currentY / scale, cssWidthPx, currentSliceH / scale,
+        0, 0, pageCanvasWidth, currentSliceH
       );
 
       // Convert page canvas to JPEG image bytes
