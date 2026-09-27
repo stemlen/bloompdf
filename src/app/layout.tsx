@@ -9,7 +9,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://bloompdf.app"),
   title: {
     default: "BloomPDF — 100% Free & Open Source PDF Editor & Tools Suite",
-    template: "%s | BloomPDF (Open Source PDF)",
+    // Page titles already carry the brand ("... | BloomPDF"), so the template
+    // must not append it again.
+    template: "%s",
   },
   description:
     "BloomPDF is the 100% free, private, open source PDF editor & tool suite. Merge, split, compress, edit, OCR, convert, and protect PDF files directly in your web browser with zero file uploads.",
@@ -40,9 +42,8 @@ export const metadata: Metadata = {
     icon: "/logo.png",
     apple: "/logo.png",
   },
-  alternates: {
-    canonical: "https://bloompdf.app",
-  },
+  // No global canonical: each page declares its own (a layout-level canonical
+  // is inherited by every page, including 404s, and pointed them all at "/").
   openGraph: {
     title: "BloomPDF — 100% Free & Open Source Online PDF Editor & Tools",
     description:
