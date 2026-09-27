@@ -22,12 +22,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.5,
     },
-    {
-      url: `${baseUrl}/editor`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.9,
-    },
+    // Note: there is no /editor route in this app. The PDF editor lives at
+    // https://editor.bloompdf.app and is linked via /tools/edit-pdf below.
     {
       url: `${baseUrl}/blog`,
       lastModified: now,
