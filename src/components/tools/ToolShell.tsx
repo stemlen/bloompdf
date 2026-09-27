@@ -36,6 +36,7 @@ import { MarkdownToPdfTool } from "./MarkdownToPdfTool";
 import { TextToPdfTool } from "./TextToPdfTool";
 import { ProtectPdfTool } from "./ProtectPdfTool";
 import { UnlockPdfTool } from "./UnlockPdfTool";
+import { PdfToWordTool } from "./PdfToWordTool";
 import { ToolIcon } from "@/components/icons/ToolIcons";
 import { cn } from "@/lib/utils";
 
@@ -88,6 +89,7 @@ export function ToolShell({ tool }: ToolShellProps) {
       if (tool.slug === "text-to-pdf") return <TextToPdfTool />;
       if (tool.slug === "protect-pdf") return <ProtectPdfTool />;
       if (tool.slug === "unlock-pdf") return <UnlockPdfTool />;
+      if (tool.slug === "pdf-to-word") return <PdfToWordTool />;
     }
 
     // No implementation yet: say so honestly instead of faking a
