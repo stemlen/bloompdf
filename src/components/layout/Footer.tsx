@@ -91,8 +91,9 @@ export function Footer() {
               <ul className="space-y-3">
                 {[
                   { label: "Blog & Guides", href: "/blog" },
-                  { label: "Help Center", href: "/#faq" },
-                  { label: "FAQs", href: "/#faq" },
+                  // There is no FAQ section on the homepage (/#faq went nowhere);
+                  // per-tool FAQs live on each tool page.
+                  { label: "Help Center", href: "/contact" },
                   { label: "All Tools", href: "/" },
                 ].map((item) => (
                   <li key={item.label}>

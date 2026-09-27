@@ -140,7 +140,7 @@ export function WordToPdfTool() {
                 <div>
                   <h3 className="text-[13px] font-bold text-white truncate max-w-[300px]">{file?.name}</h3>
                   <p className="text-[11px] text-[#A1A19D]">
-                    {file ? (file.size / 1024 / 1024).toFixed(2) : "0"} MB • {thumbnails.length > 0 ? `${thumbnails.length} Pages` : "Analyzing..."}
+                    {file ? (file.size / 1024 / 1024).toFixed(2) : "0"} MB • {thumbnails.length > 0 ? `${thumbnails.length} Pages` : loading ? "Converting..." : error ? "Conversion failed" : "Not converted"}
                   </p>
                 </div>
               </div>
