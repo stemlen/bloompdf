@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -11,7 +11,7 @@ import {
   Hash, Droplets, Crop, ClipboardList,
 } from "lucide-react";
 import { getToolBySlug, type Tool } from "@/lib/tools";
-import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
+import { getCategoryById } from "@/lib/categories";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useRecent } from "@/lib/hooks/useRecent";
 import { MergePDFTool } from "./MergePDFTool";

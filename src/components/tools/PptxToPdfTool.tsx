@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import {
-  Upload, FileText, Settings, Loader2, Download, AlertCircle, Maximize, CheckSquare, 
+  Settings, Loader2, Download, AlertCircle, CheckSquare, 
   ChevronLeft, ChevronRight, Presentation
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -174,7 +174,7 @@ export function PptxToPdfTool() {
 
       // Save and download
       const finalBytes = await newDoc.save({ useObjectStreams: false });
-      const finalBlob = new Blob([finalBytes as any], { type: "application/pdf" });
+      const finalBlob = new Blob([finalBytes as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(finalBlob);
       const a = document.createElement("a");
       a.href = url;

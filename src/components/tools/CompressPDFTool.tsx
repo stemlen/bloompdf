@@ -11,7 +11,6 @@ import {
   AlertCircle,
   RefreshCw,
   PackageMinus,
-  TrendingDown,
   ArrowRight,
 } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
@@ -162,7 +161,7 @@ export function CompressPDFTool() {
          });
          setCompressState("ready");
       }
-    } catch (e) {
+    } catch {
       if (!abortRef.current) {
         // Fallback: If we can't render it, just allow compression without preview
         setPdfInfo({ file: f, name: f.name, size: f.size, totalPages: 0 });
@@ -177,7 +176,6 @@ export function CompressPDFTool() {
     e.preventDefault();
     setIsDragOver(false);
     if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };

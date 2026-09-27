@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   FileText, Settings, Loader2, Download, AlertCircle, 
   Upload, Edit3, Eye, File, AlignLeft, AlignCenter, AlignRight, AlignJustify
