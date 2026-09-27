@@ -220,40 +220,45 @@ export const seoDataMap: Record<string, ToolSeoData> = {
   },
 
   "pdf-to-word": {
-    seoTitle: "Convert PDF to Word DOCX Online Free — Editable Text | BloomPDF",
+    seoTitle: "PDF to Word (DOCX) Converter — Private, In-Browser | BloomPDF",
     metaDescription:
-      "Convert PDF files into fully editable Microsoft Word (.docx) documents. High accuracy layout preservation with BloomPDF. 100% private in-browser conversion.",
+      "Convert PDF to an editable Word (.docx) file right in your browser. Your file never leaves your device. Keeps text, headings, bold/italic, simple tables and images; scanned pages are OCR'd.",
     keywords: [
       "convert PDF to Word",
       "PDF to DOCX online",
-      "editable PDF to Word",
+      "PDF to Word in browser",
+      "private PDF to Word converter",
       "free PDF to Word converter",
-      "BloomPDF to word",
     ],
     howToSteps: [
       {
         name: "Select PDF Document",
-        text: "Upload the PDF you want to convert to Microsoft Word format.",
+        text: "Choose or drop the PDF you want to convert. It is processed on your device and never uploaded.",
       },
       {
-        name: "Process File",
-        text: "BloomPDF parses text streams, tables, and images into Word-compatible elements.",
+        name: "Convert in Your Browser",
+        text: "BloomPDF reads the text, fonts and images of each page and rebuilds paragraphs, headings, simple tables and column reading order. Scanned pages are run through OCR first.",
       },
       {
         name: "Download DOCX",
-        text: "Save your newly created editable .docx document.",
+        text: "Save the .docx and open it in Word, LibreOffice or Google Docs to edit.",
       },
     ],
     faqs: [
       {
         question: "Will the formatting of my PDF remain accurate in Word?",
         answer:
-          "BloomPDF intelligently detects paragraphs, headings, tables, and images to maintain structure in the output DOCX.",
+          "Basic layout is preserved: text in reading order (including multi-column pages), headings, bold and italic, simple tables as real Word tables, and embedded raster images. Complex layouts, vector drawings, equations and exact positioning are not reproduced, so expect to do some clean-up for design-heavy documents.",
       },
       {
         question: "Can I convert scanned PDFs to Word?",
         answer:
-          "Yes! For scanned documents, use BloomPDF OCR PDF first to recognize text, then export to Word.",
+          "Yes. Pages that contain only an image are recognized with OCR in your browser before conversion, so the Word file contains editable text. OCR accuracy depends on scan quality, and recognized text does not keep bold or italic styling.",
+      },
+      {
+        question: "Is my file uploaded to a server?",
+        answer:
+          "No. The conversion runs entirely in your browser; the PDF and the resulting .docx never leave your device.",
       },
     ],
     competitorComparison: defaultCompetitorComparison,
