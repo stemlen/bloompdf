@@ -11,25 +11,16 @@ import {
   AlertCircle,
   RefreshCw,
   PackageMinus,
-  TrendingDown,
   ArrowRight,
 } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
 import {
+  compressPDF,
   downloadCompressedPDF,
   type CompressionLevel,
+  type CompressionResult,
   MAX_FILE_SIZE_BYTES,
 } from "@/lib/compressPdf";
-
-export interface CompressionResult {
-  bytes: Uint8Array;
-  originalSize: number;
-  compressedSize: number;
-  reduction: number;
-  modeUsed?: string;
-  warningMessage?: string;
-}
-
 import { loadPdfForRendering, renderPageToDataURL } from "@/lib/pdfRender";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -56,25 +47,25 @@ const COMPRESSION_LEVELS: {
     value: "low",
     label: "Less Compression",
     shortLabel: "Low",
-    description: "Fastest · Structural rewrite only · Maximum quality preserved",
+    description: "Best quality · Only very large images are downsampled (~300 dpi)",
   },
   {
     value: "medium",
     label: "Recommended",
     shortLabel: "Medium",
-    description: "Balanced · Removes metadata · Good reduction for most files",
+    description: "Balanced · Images re-encoded at ~150 dpi · Removes metadata",
   },
   {
     value: "high",
     label: "Extreme Compression",
     shortLabel: "High",
-    description: "Smallest file · Removes thumbnails & private app data",
+    description: "Smallest file · Images ~96 dpi · Strips thumbnails & app data",
   },
   {
     value: "target",
     label: "Custom Target Size",
     shortLabel: "Target",
-    description: "Specify a desired maximum file size in MB",
+    description: "Specify a desired maximum file size (KB or MB)",
   },
 ];
 
@@ -170,7 +161,7 @@ export function CompressPDFTool() {
          });
          setCompressState("ready");
       }
-    } catch (e) {
+    } catch {
       if (!abortRef.current) {
         // Fallback: If we can't render it, just allow compression without preview
         setPdfInfo({ file: f, name: f.name, size: f.size, totalPages: 0 });
@@ -185,7 +176,6 @@ export function CompressPDFTool() {
     e.preventDefault();
     setIsDragOver(false);
     if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
@@ -231,57 +221,20 @@ export function CompressPDFTool() {
       targetSizeKb = targetUnit === "MB" ? parsed * 1024 : parsed;
     }
 
-    // Simulate progress
-    let simProgress = 0;
-    const progressInterval = setInterval(() => {
-      simProgress += (90 - simProgress) * 0.1;
-      setProgress(Math.round(simProgress));
-    }, 500);
-
     try {
-      const formData = new FormData();
-      formData.append("file", pdfInfo.file);
-      formData.append("level", level);
-      if (targetSizeKb) formData.append("targetSizeKb", targetSizeKb.toString());
-
-      const res = await fetch("/api/compress-pdf", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        let msg = "Failed to compress PDF.";
-        try {
-          const errData = await res.json();
-          msg = errData.error || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-
-      const buffer = await res.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      
-      const origStr = res.headers.get("X-Original-Size");
-      const compStr = res.headers.get("X-Compressed-Size");
-      const redStr = res.headers.get("X-Reduction-Pct");
-      const modeUsed = res.headers.get("X-Strategy-Used") || undefined;
-      const warnStr = res.headers.get("X-Warning-Message");
-      const warningMessage = warnStr ? decodeURIComponent(warnStr) : undefined;
-
-      clearInterval(progressInterval);
+      // 100% client-side: the PDF never leaves the browser.
+      const res = await compressPDF(
+        pdfInfo.file,
+        level,
+        (pct) => { if (!abortRef.current) setProgress(pct); },
+        targetSizeKb
+      );
+      if (abortRef.current) return;
       setProgress(100);
-
-      setResult({
-        bytes,
-        originalSize: origStr ? parseInt(origStr, 10) : pdfInfo.size,
-        compressedSize: compStr ? parseInt(compStr, 10) : bytes.byteLength,
-        reduction: redStr ? parseInt(redStr, 10) : 0,
-        modeUsed,
-        warningMessage
-      });
+      setResult(res);
       setCompressState("done");
     } catch (err) {
-      clearInterval(progressInterval);
+      if (abortRef.current) return;
       setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred.");
       setCompressState("error");
     }
@@ -472,6 +425,13 @@ export function CompressPDFTool() {
                    ) : (
                      <p className="text-muted-foreground text-[16px]">We attempted multiple strategies but no further meaningful reduction was achievable.</p>
                    )}
+                   {result.warningMessage && (
+                     <p className="text-[13px] text-muted-foreground max-w-md mx-auto flex items-start gap-2 justify-center">
+                       <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-[#E8607A]" />
+                       <span>{result.warningMessage}</span>
+                     </p>
+                   )}
+                   <p className="text-[12px] text-muted-foreground">Processed entirely in your browser — your file was never uploaded.</p>
                 </div>
 
                 <div className="w-full bg-card rounded-3xl border border-border shadow-sm overflow-hidden flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-[#E4E4E2]">

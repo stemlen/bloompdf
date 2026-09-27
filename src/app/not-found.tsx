@@ -1,5 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { FileSearch } from "lucide-react";
+
+// 404s: no canonical (none is inherited from the layout any more) and noindex.
+export const metadata: Metadata = {
+  title: "Page Not Found | BloomPDF",
+  robots: { index: false, follow: true },
+};
 
 export default function NotFound() {
   return (

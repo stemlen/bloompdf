@@ -9,8 +9,24 @@
  *  4. In "extract text" mode: concatenate recognized text and return as .txt
  */
 
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { loadPdfForRendering, renderPageToDataURL } from "./pdfRender";
+import {
+  PDFDocument,
+  StandardFonts,
+  type PDFFont,
+  type PDFPage,
+  pushGraphicsState,
+  popGraphicsState,
+  beginText,
+  endText,
+  setFontAndSize,
+  setTextRenderingMode,
+  TextRenderingMode,
+  setCharacterSqueeze,
+  moveText,
+  showText,
+} from "pdf-lib";
+import type { Block, Line, Word } from "tesseract.js";
+import { loadPdfForRendering } from "./pdfRender";
 import * as pdfjsLib from "pdfjs-dist";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,6 +43,10 @@ export interface OCRWord {
     x1: number; // right in canvas px
     y1: number; // bottom in canvas px
   };
+  /** Baseline y (canvas px) at the word's horizontal centre, when Tesseract reports one. */
+  baselineY?: number;
+  /** Height of the text line the word belongs to (canvas px). */
+  lineHeight?: number;
 }
 
 export interface OCRPageResult {
@@ -49,6 +69,10 @@ export interface OCRResult {
   pdfBytes?: Uint8Array;
   /** present if outputMode === "extract-text" */
   textContent?: string;
+  /** Number of words written into the invisible text layer (searchable-pdf mode). */
+  textLayerWords?: number;
+  /** Set when recognised words could not be written to the text layer (e.g. non-Latin scripts). */
+  textLayerWarning?: string;
 }
 
 export interface OCREnhancementOptions {
@@ -136,7 +160,7 @@ async function renderPageToCanvas(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport } as any).promise;
+  await page.render({ canvasContext: ctx, viewport } as unknown as Parameters<typeof page.render>[0]).promise;
 
   // Apply enhancements
   if (opts.autoEnhance || opts.increaseContrast || opts.removeNoise) {
@@ -248,28 +272,11 @@ export async function runOCR(
     // --- OCR phase ---
     onProgress({ phase: "ocr", page: pageNum, totalPages: n, pct: Math.round(overallBase + (0.4 / n) * 90) });
 
-    const { data } = await worker.recognize(canvas);
-    const pageData = data as any;
-
-    const rawWords: any[] =
-      pageData.words ||
-      pageData.blocks?.flatMap((b: any) =>
-        b.paragraphs?.flatMap((p: any) =>
-          p.lines?.flatMap((l: any) => l.words || [])
-        )
-      ) ||
-      [];
-
-    const words: OCRWord[] = rawWords.map((w: any) => ({
-      text: w.text,
-      confidence: Math.round(w.confidence || 0),
-      bbox: {
-        x0: w.bbox?.x0 ?? 0,
-        y0: w.bbox?.y0 ?? 0,
-        x1: w.bbox?.x1 ?? 0,
-        y1: w.bbox?.y1 ?? 0,
-      },
-    }));
+    // tesseract.js v5+ only returns the block/paragraph/line/word tree when
+    // it is explicitly requested; without `blocks: true` there are no word
+    // boxes and the searchable PDF ends up with an empty text layer.
+    const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
+    const words = extractWords(data.blocks);
 
     pageResults.push({
       pageNumber: pageNum,
@@ -311,8 +318,10 @@ export async function runOCR(
   }
 
   // Build searchable PDF: embed page images + invisible text overlay
-  const outPdf = await (await import("pdf-lib")).PDFDocument.create();
+  const outPdf = await PDFDocument.create();
   const helvetica = await outPdf.embedFont(StandardFonts.Helvetica);
+  let textLayerWords = 0;
+  let skippedWords = 0;
 
   for (let i = 0; i < pageResults.length; i++) {
     const result = pageResults[i];
@@ -330,37 +339,10 @@ export async function runOCR(
     // Draw the image filling the page
     page.drawImage(embeddedImg, { x: 0, y: 0, width: pdfWidth, height: pdfHeight });
 
-    // Draw invisible text overlay precisely aligned over each word
-    for (const word of words) {
-      const textStr = word.text.trim();
-      if (!textStr) continue;
-
-      const boxW = (word.bbox.x1 - word.bbox.x0) * scaleX;
-      const boxH = (word.bbox.y1 - word.bbox.y0) * scaleY;
-      if (boxW <= 0 || boxH <= 0) continue;
-
-      const pdfX = word.bbox.x0 * scaleX;
-      // In PDF coordinate space (origin at bottom-left):
-      // Align baseline: font ascender fits inside box, descender (~18%) sits at bottom of box
-      const pdfY = pdfHeight - (word.bbox.y1 * scaleY) + (boxH * 0.18);
-      // Calculate font size respecting height and max character width constraint so glyphs don't spill
-      const heightFontSize = boxH * 0.88;
-      const widthFontSize = boxW / Math.max(1, textStr.length * 0.52);
-      const fontSize = Math.max(2, Math.min(heightFontSize, widthFontSize));
-
-      try {
-        page.drawText(textStr, {
-          x: pdfX,
-          y: pdfY,
-          size: fontSize,
-          font: helvetica,
-          color: rgb(0, 0, 0),
-          opacity: 0.0001, // Invisible searchable/selectable text
-        });
-      } catch {
-        // Skip characters/words that standard Helvetica cannot encode (e.g. CJK/Arabic)
-      }
-    }
+    // Invisible (render mode 3) text overlay aligned with each recognised word
+    const layer = drawInvisibleWords(page, helvetica, words, scaleX, scaleY, pdfHeight);
+    textLayerWords += layer.drawn;
+    skippedWords += layer.skipped;
 
     onProgress({ phase: "building", page: result.pageNumber, totalPages: n, pct: 92 + Math.round((i / n) * 8) });
   }
@@ -368,7 +350,15 @@ export async function runOCR(
   const pdfBytes = await outPdf.save();
   onProgress({ phase: "building", page: 0, totalPages: n, pct: 100 });
 
-  return { pages: pageResults, averageConfidence: avgConf, outputMode, pdfBytes };
+  let textLayerWarning: string | undefined;
+  if (textLayerWords === 0 && pageResults.some((r) => r.text.trim())) {
+    textLayerWarning =
+      "Text was recognised but could not be embedded as a searchable layer (the built-in PDF font only covers Latin characters). Use \"Extract Text\" to get the text.";
+  } else if (skippedWords > 0) {
+    textLayerWarning = `${skippedWords} recognised word(s) contain characters the built-in PDF font can't encode and were left out of the searchable layer.`;
+  }
+
+  return { pages: pageResults, averageConfidence: avgConf, outputMode, pdfBytes, textLayerWords, textLayerWarning };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -381,34 +371,101 @@ function dataURLtoBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-interface WordBox { text: string; x: number; y: number; w: number; h: number; }
+/** Flatten Tesseract's block → paragraph → line → word tree into OCRWords. */
+function extractWords(blocks: Block[] | null): OCRWord[] {
+  const out: OCRWord[] = [];
+  for (const block of blocks ?? []) {
+    for (const para of block.paragraphs ?? []) {
+      for (const line of para.lines ?? []) {
+        const lineHeight = line.bbox.y1 - line.bbox.y0;
+        for (const w of line.words ?? []) {
+          out.push({
+            text: w.text,
+            confidence: Math.round(w.confidence || 0),
+            bbox: { x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1 },
+            baselineY: baselineAt(line, w),
+            lineHeight: lineHeight > 0 ? lineHeight : undefined,
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Interpolate the line's baseline at the word's horizontal centre. */
+function baselineAt(line: Line, w: Word): number | undefined {
+  const bl = line.baseline;
+  if (!bl || !bl.has_baseline || bl.x1 === bl.x0) return undefined;
+  const cx = (w.bbox.x0 + w.bbox.x1) / 2;
+  const y = bl.y0 + ((bl.y1 - bl.y0) * (cx - bl.x0)) / (bl.x1 - bl.x0);
+  // Guard against odd baselines far outside the word box.
+  return y >= w.bbox.y0 && y <= w.bbox.y1 + (w.bbox.y1 - w.bbox.y0) ? y : undefined;
+}
+
+/** Keep only characters the standard WinAnsi font can encode. */
+function encodable(font: PDFFont, text: string): boolean {
+  try {
+    font.encodeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Generate simple uniform word boxes by splitting text into lines/words
- * and distributing them evenly across the page.
- * This is a best-effort approach since Tesseract.js v6 bboxes are image-space.
+ * Writes each word as invisible text (Tr 3) at its image position, horizontally
+ * scaled (Tz) so its width matches the word box. This is the standard OCR
+ * text-layer technique: text is selectable/searchable but never painted.
  */
-function rerenderWordsWithBoxes(text: string, pageWidth: number, pageHeight: number): WordBox[] {
-  const lines = text.split("\n").filter((l) => l.trim());
-  const lineHeight = Math.max(12, pageHeight / Math.max(lines.length, 1));
-  const words: WordBox[] = [];
+function drawInvisibleWords(
+  page: PDFPage,
+  font: PDFFont,
+  words: OCRWord[],
+  scaleX: number,
+  scaleY: number,
+  pdfHeight: number
+): { drawn: number; skipped: number } {
+  const fontKey = page.node.newFontDictionary("OcrF", font.ref);
+  const ops = [pushGraphicsState(), beginText(), setTextRenderingMode(TextRenderingMode.Invisible)];
+  let drawn = 0;
+  let skipped = 0;
 
-  lines.forEach((line, lineIdx) => {
-    const lineWords = line.split(/\s+/).filter(Boolean);
-    const y = lineIdx * lineHeight;
-    const xStep = lineWords.length > 0 ? pageWidth / lineWords.length : pageWidth;
-    lineWords.forEach((word, wordIdx) => {
-      words.push({
-        text: word,
-        x: wordIdx * xStep,
-        y,
-        w: xStep,
-        h: lineHeight * 0.85,
-      });
-    });
-  });
+  for (const word of words) {
+    const text = word.text.trim();
+    if (!text) continue;
+    if (!encodable(font, text)) {
+      skipped++;
+      continue;
+    }
+    const boxW = (word.bbox.x1 - word.bbox.x0) * scaleX;
+    const boxH = (word.bbox.y1 - word.bbox.y0) * scaleY;
+    if (boxW <= 0 || boxH <= 0) continue;
 
-  return words;
+    const lineH = (word.lineHeight ?? word.bbox.y1 - word.bbox.y0) * scaleY;
+    const fontSize = Math.max(1, lineH * 0.8);
+    const naturalW = font.widthOfTextAtSize(text, fontSize);
+    const squeeze = naturalW > 0 ? Math.min(1000, Math.max(5, (boxW / naturalW) * 100)) : 100;
+
+    const x = word.bbox.x0 * scaleX;
+    const baseline =
+      word.baselineY !== undefined
+        ? pdfHeight - word.baselineY * scaleY
+        : pdfHeight - word.bbox.y1 * scaleY + boxH * 0.2; // approx. descender share
+    // Absolute positioning: reset the text matrix for each word.
+    ops.push(
+      setFontAndSize(fontKey, fontSize),
+      setCharacterSqueeze(squeeze),
+      moveText(x, baseline),
+      showText(font.encodeText(text)),
+      moveText(-x, -baseline)
+    );
+    drawn++;
+  }
+
+  ops.push(endText(), popGraphicsState());
+  if (drawn > 0) page.pushOperators(...ops);
+  return { drawn, skipped };
 }
 
 /** Trigger a browser download for text content */
@@ -424,7 +481,7 @@ export function downloadTextFile(text: string, filename: string): void {
 
 /** Trigger a browser download for PDF bytes */
 export function downloadPDFBytes(bytes: Uint8Array, filename: string): void {
-  const blob = new Blob([bytes as any], { type: "application/pdf" });
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

@@ -34,6 +34,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: canonicalUrl,
     },
+    // Not implemented yet ("coming soon"): keep it out of search results.
+    ...(tool.comingSoon ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title: seoData.seoTitle,
       description: seoData.metaDescription,

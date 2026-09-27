@@ -27,6 +27,9 @@ export const metadata: Metadata = {
   title: "About Us | BloomPDF — A Product by Stemlen",
   description:
     "Learn about BloomPDF and Stemlen Private Limited. Discover our mission to provide private, high-performance, client-side document tools for everyone.",
+  alternates: {
+    canonical: "https://bloompdf.app/about",
+  },
 };
 
 export default function AboutPage() {

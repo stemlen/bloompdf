@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: "Terms & Conditions | BloomPDF",
   description:
     "Read the Terms and Conditions governing your use of BloomPDF's free PDF tools and services.",
+  alternates: {
+    canonical: "https://bloompdf.app/terms-and-conditions",
+  },
 };
 
 export default function TermsAndConditionsPage() {

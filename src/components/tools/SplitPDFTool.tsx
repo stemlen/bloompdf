@@ -10,6 +10,7 @@ import {
   validatePDFFile, parseCustomRanges, parseSpecificPages,
   generateFixedRanges, splitPDF, downloadFile, type SplitRange, type GeneratedFile
 } from "@/lib/splitPdf";
+import { downloadZip } from "@/lib/zipDownload";
 import { loadPdfForRendering, renderPageToDataURL } from "@/lib/pdfRender";
 
 type SplitMode = "custom" | "specific" | "fixed";
@@ -173,10 +174,11 @@ export function SplitPDFTool() {
     }
   };
 
+  // One ZIP instead of N downloads: browsers block or prompt for multiple
+  // simultaneous downloads, so users often only received the first file.
   const handleDownloadAll = () => {
-    results.forEach((res, index) => {
-      setTimeout(() => downloadFile(res.bytes, res.name), index * 300);
-    });
+    const base = (pdfInfo?.name ?? "document.pdf").replace(/\.pdf$/i, "");
+    downloadZip(results, `${base}_split.zip`);
   };
 
   const handleReset = () => {
@@ -420,7 +422,7 @@ export function SplitPDFTool() {
                        className="h-11 px-6 bg-[#111111] hover:bg-[#333333] text-white rounded-xl font-bold text-[14px] transition-all shadow-md mx-auto flex items-center gap-2"
                      >
                        <Download className="w-4 h-4" />
-                       Download All Files
+                       Download All (ZIP)
                      </button>
                    )}
                 </div>

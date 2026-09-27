@@ -22,12 +22,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.5,
     },
-    {
-      url: `${baseUrl}/editor`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.9,
-    },
+    // Note: there is no /editor route in this app. The PDF editor lives at
+    // https://editor.bloompdf.app and is linked via /tools/edit-pdf below.
     {
       url: `${baseUrl}/blog`,
       lastModified: now,
@@ -60,13 +56,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "split-pdf",
     "compress-pdf",
     "edit-pdf",
-    "pdf-to-word",
     "word-to-pdf",
     "ocr-pdf",
     "protect-pdf",
   ];
 
-  const toolPages: MetadataRoute.Sitemap = tools.map((tool) => {
+  // "Coming soon" tools have no implementation yet, so they are left out.
+  const toolPages: MetadataRoute.Sitemap = tools.filter((tool) => !tool.comingSoon).map((tool) => {
     const isHighPriority = highPrioritySlugs.includes(tool.slug);
     return {
       url: `${baseUrl}/tools/${tool.slug}`,

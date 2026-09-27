@@ -66,7 +66,7 @@ BloomPDF is a modern, fast, and feature-rich web application for editing, conver
 ├── public/                     # Favicons, logo, and static assets
 ├── src/
 │   ├── app/                    # Next.js App Router pages and API routes
-│   │   ├── api/                # Conversion API endpoints (Word, Excel, PPTX, HTML, etc.)
+│   │   ├── api/                # Legacy route handlers, NOT deployed (static export) — see api/README.md
 │   │   ├── tools/[slug]/       # Dynamic tool workspace pages
 │   │   ├── globals.css         # Tailwind and global styles
 │   │   ├── layout.tsx          # Main application layout & Theme Provider
@@ -94,7 +94,7 @@ BloomPDF is a modern, fast, and feature-rich web application for editing, conver
 
 - **Node.js**: v18.x or v20.x+ recommended
 - **npm** / **yarn** / **pnpm** / **bun**
-- *(Optional)* **LibreOffice**: Installed locally if running server-side Word/PPTX/Excel conversions via `libreoffice-convert`.
+- Word / PowerPoint / Excel / HTML to PDF need a conversion backend (planned: Gotenberg behind a Cloudflare Pages Function at `POST /api/convert`). Until it is deployed, leave `NEXT_PUBLIC_CONVERT_ENABLED` unset and those tools show a "temporarily unavailable" state. See `.env.example` and `src/lib/convertApi.ts`.
 
 ### Installation
 
@@ -126,8 +126,8 @@ In the project directory, you can run:
 | Command | Description |
 | :--- | :--- |
 | `npm run dev` | Starts the Next.js development server |
-| `npm run build` | Builds the application for production |
-| `npm run start` | Runs the compiled production build |
+| `npm run build` | Builds the static export into `out/` (what Cloudflare Pages serves) |
+| `npx serve out` | Serves the static export locally for testing |
 | `npm run lint` | Runs ESLint to check for code quality and lint errors |
 
 ---

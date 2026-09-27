@@ -12,7 +12,7 @@
  *  4. buildReport         – creates a human-readable repair report
  */
 
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFName, PDFRef, PDFArray, rgb, StandardFonts } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
 
 if (typeof window !== "undefined") {
@@ -54,6 +54,8 @@ export interface HealthAnalysis {
   issues: PDFIssue[];
   pageCount: number | null;
   parsedWithPdfLib: boolean;
+  /** pdf-lib could open the file after rebuilding its xref/trailer section (see loadWithRecovery). */
+  recoverableWithPdfLib: boolean;
   parsedWithPdfJs: boolean;
   fileSizeBytes: number;
   hasValidHeader: boolean;
@@ -129,10 +131,114 @@ function checkXref(bytes: Uint8Array): { hasXref: boolean; hasTrailer: boolean }
   };
 }
 
-/** Scan for obvious encryption dictionary */
+/** Scan for an encryption dictionary (the trailer is usually at the end of the file). */
 function checkEncryption(bytes: Uint8Array): boolean {
-  const text = new TextDecoder("latin1").decode(bytes.slice(0, Math.min(bytes.length, 64 * 1024)));
-  return text.includes("/Encrypt");
+  const dec = new TextDecoder("latin1");
+  const head = dec.decode(bytes.slice(0, Math.min(bytes.length, 64 * 1024)));
+  const tail = dec.decode(bytes.slice(Math.max(0, bytes.length - 64 * 1024)));
+  return head.includes("/Encrypt") || tail.includes("/Encrypt");
+}
+
+// ─── Structural recovery for pdf-lib ─────────────────────────────────────────
+//
+// pdf-lib parses a file front to back and doesn't need the xref table to find
+// objects, but it gives up on a damaged tail (garbage `startxref` offset,
+// broken xref table/trailer, truncated last object). Rebuilding the tail keeps
+// every intact object, so text, fonts and vector content survive — instead of
+// falling through to the render-to-image strategy.
+
+export type PdfLibRecovery = "none" | "rebuilt-tail" | "rebuilt-tail-no-trailer";
+
+function lastIndexOfBytes(hay: Uint8Array, needle: string): number {
+  const n = Array.from(needle, (c) => c.charCodeAt(0));
+  outer: for (let i = hay.length - n.length; i >= 0; i--) {
+    for (let j = 0; j < n.length; j++) if (hay[i + j] !== n[j]) continue outer;
+    return i;
+  }
+  return -1;
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((s, p) => s + p.length, 0));
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+
+/**
+ * Candidate rebuilt files: header fixed, everything after the last complete
+ * `endobj` replaced by a fresh trailer. The first candidate keeps the old
+ * trailer dictionary (for /Info, /ID); the second drops it and relies on
+ * pdf-lib locating the /Catalog itself.
+ */
+function rebuildTailCandidates(bytes: Uint8Array): { kind: PdfLibRecovery; bytes: Uint8Array }[] {
+  const enc = new TextEncoder();
+  const dec = new TextDecoder("latin1");
+  let body = bytes;
+  const headerAt = lastIndexOfBytes(bytes.slice(0, 1024), "%PDF-");
+  if (headerAt > 0) body = bytes.slice(headerAt);
+  if (headerAt < 0) body = concatBytes([enc.encode("%PDF-1.7\n"), bytes]);
+
+  const lastEndobj = lastIndexOfBytes(body, "endobj");
+  if (lastEndobj < 0) return [];
+  const objects = body.slice(0, lastEndobj + "endobj".length);
+
+  const candidates: { kind: PdfLibRecovery; bytes: Uint8Array }[] = [];
+  const tail = dec.decode(body.slice(lastEndobj));
+  const trailerMatch = /trailer\s*(<<[\s\S]*?>>)\s*(?:startxref|$)/.exec(tail);
+  if (trailerMatch && /\/Root\s+\d+\s+\d+\s+R/.test(trailerMatch[1])) {
+    // Drop the stale /Prev and /XRefStm pointers; offsets are regenerated on save.
+    const dict = trailerMatch[1].replace(/\/(Prev|XRefStm)\s+\d+/g, "");
+    candidates.push({ kind: "rebuilt-tail", bytes: concatBytes([objects, enc.encode(`\ntrailer\n${dict}\nstartxref\n0\n%%EOF\n`)]) });
+  }
+  candidates.push({ kind: "rebuilt-tail-no-trailer", bytes: concatBytes([objects, enc.encode("\nstartxref\n0\n%%EOF\n")]) });
+  return candidates;
+}
+
+/**
+ * Pages whose content stream(s) are missing (e.g. cut off by truncation) would
+ * be copied with a dangling reference, which viewers report as broken page
+ * contents. Drop the dangling /Contents so the page is a valid blank page, and
+ * return the 1-based numbers of the affected pages.
+ */
+function detachMissingContents(doc: PDFDocument): number[] {
+  const affected: number[] = [];
+  doc.getPages().forEach((page, i) => {
+    const contents = page.node.get(PDFName.of("Contents"));
+    const refs = contents instanceof PDFRef ? [contents] : contents instanceof PDFArray ? contents.asArray() : [];
+    const missing = refs.some((r) => r instanceof PDFRef && doc.context.lookup(r) === undefined);
+    if (missing) {
+      page.node.delete(PDFName.of("Contents"));
+      affected.push(i + 1);
+    }
+  });
+  return affected;
+}
+
+/**
+ * Load with pdf-lib, rebuilding a damaged file tail if the strict parse fails.
+ * updateMetadata:false matters: otherwise pdf-lib registers a new Info dict
+ * under the next free object number, which can be exactly the number of a
+ * missing (truncated) object, silently "resolving" a dangling page /Contents.
+ */
+export async function loadWithRecovery(
+  bytes: Uint8Array
+): Promise<{ doc: PDFDocument; recovery: PdfLibRecovery } | null> {
+  const opts = { ignoreEncryption: true, updateMetadata: false };
+  try {
+    return { doc: await PDFDocument.load(bytes, opts), recovery: "none" };
+  } catch {
+    // fall through to structural recovery
+  }
+  for (const c of rebuildTailCandidates(bytes)) {
+    try {
+      const doc = await PDFDocument.load(c.bytes, opts);
+      if (doc.getPageCount() > 0) return { doc, recovery: c.kind };
+    } catch {
+      // try the next candidate
+    }
+  }
+  return null;
 }
 
 /** Count rough occurrences of stream/endstream mismatches as proxy for stream errors */
@@ -194,6 +300,16 @@ export async function analysePDF(
     }
   } catch {
     parsedWithPdfLib = false;
+  }
+
+  let recoverableWithPdfLib = parsedWithPdfLib;
+  if (!parsedWithPdfLib) {
+    onProgress?.({ phase: "analysing", step: "Trying structural recovery…", pct: 36 });
+    const recovered = await loadWithRecovery(bytes);
+    if (recovered) {
+      recoverableWithPdfLib = true;
+      pdfLibPageCount = recovered.doc.getPageCount();
+    }
   }
 
   // ── Try pdfjs-dist (tolerant) ─────────────────────────────────────────────
@@ -282,7 +398,7 @@ export async function analysePDF(
       fixable: true,
     });
   }
-  if (hasEncryption && !parsedWithPdfLib) {
+  if (hasEncryption) {
     issues.push({
       id: "encrypted",
       severity: "critical",
@@ -322,7 +438,7 @@ export async function analysePDF(
       fixable: true,
     });
   }
-  if (!parsedWithPdfLib && !parsedWithPdfJs) {
+  if (!parsedWithPdfLib && !parsedWithPdfJs && !recoverableWithPdfLib) {
     issues.push({
       id: "unreadable",
       severity: "critical",
@@ -380,7 +496,10 @@ export async function analysePDF(
   let repairabilityStatus: string;
   let recoveryProbability: HealthAnalysis["recoveryProbability"];
 
-  if (!parsedWithPdfJs && !parsedWithPdfLib) {
+  if (hasEncryption) {
+    repairabilityStatus = "Password-protected — unlock the PDF first, then repair it";
+    recoveryProbability = "Low";
+  } else if (!parsedWithPdfJs && !recoverableWithPdfLib) {
     repairabilityStatus = "Recovery unlikely — file is unreadable by all parsers";
     recoveryProbability = "Low";
   } else if (criticalCount === 0) {
@@ -404,6 +523,7 @@ export async function analysePDF(
     issues,
     pageCount,
     parsedWithPdfLib,
+    recoverableWithPdfLib,
     parsedWithPdfJs,
     fileSizeBytes,
     hasValidHeader,
@@ -432,8 +552,17 @@ export async function analyseAndRepairPDF(
 
   onProgress?.({ phase: "repairing", step: "Beginning repair…", pct: 0 });
 
+  // Encrypted files: pdf-lib can parse them with ignoreEncryption, but copied
+  // streams stay encrypted under a key the new file doesn't have, so the
+  // "repaired" output would render blank. Ask the user to unlock first.
+  if (analysis.hasEncryption) {
+    throw new Error(
+      "This PDF is password-protected or encrypted. Unlock it first (Unlock PDF tool), then repair the unlocked copy."
+    );
+  }
+
   // If absolutely unreadable, we cannot repair
-  if (!analysis.parsedWithPdfJs && !analysis.parsedWithPdfLib) {
+  if (!analysis.parsedWithPdfJs && !analysis.recoverableWithPdfLib) {
     throw new Error(
       "This file cannot be read by any PDF parser. It may be severely corrupted, " +
       "not a PDF file, or require a password. Repair is not possible."
@@ -444,11 +573,27 @@ export async function analyseAndRepairPDF(
   let pagesRecovered = 0;
   let totalPagesAttempted = 0;
 
-  // ── Strategy A: pdf-lib can open it → clean rebuild ──────────────────────
-  if (analysis.parsedWithPdfLib) {
+  // ── Strategy A: pdf-lib can open it (directly or after rebuilding the
+  // damaged xref/trailer tail) → copy pages into a clean document. This keeps
+  // text, fonts and vector content, so it is always preferred over B.
+  const loaded = analysis.recoverableWithPdfLib ? await loadWithRecovery(new Uint8Array(arrayBuffer)) : null;
+  if (loaded) {
     onProgress?.({ phase: "repairing", step: "Loading with strict parser…", pct: 10 });
 
-    const srcDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+    const srcDoc = loaded.doc;
+    const blankPages = detachMissingContents(srcDoc);
+    if (blankPages.length > 0) {
+      warnings.push(
+        `Content of page${blankPages.length > 1 ? "s" : ""} ${blankPages.join(", ")} was missing from the file (likely truncated); ` +
+        `${blankPages.length > 1 ? "they were" : "it was"} kept as blank page${blankPages.length > 1 ? "s" : ""}`
+      );
+    }
+    if (loaded.recovery !== "none") {
+      repairActions.push("Damaged cross-reference / trailer section discarded and rebuilt");
+      if (loaded.recovery === "rebuilt-tail-no-trailer") {
+        repairActions.push("Document catalog located by scanning objects (trailer was unusable)");
+      }
+    }
     const outDoc = await PDFDocument.create();
 
     // Repair metadata
@@ -492,6 +637,9 @@ export async function analyseAndRepairPDF(
     }
 
     repairActions.push(`Rebuilt ${pagesRecovered}/${total} pages into clean PDF structure`);
+    if (analysis.pageCount !== null && analysis.parsedWithPdfJs && total < analysis.pageCount) {
+      warnings.push(`Only ${total} of ${analysis.pageCount} pages could be recovered with their original content`);
+    }
     repairActions.push("PDF structure normalised (XRef table regenerated by pdf-lib)");
     repairActions.push("Object references validated and cleaned");
     if (!analysis.hasValidEOF) repairActions.push("%%EOF marker restored");
@@ -518,9 +666,12 @@ export async function analyseAndRepairPDF(
   // ── Strategy B: only pdfjs can open it → render-and-rebuild ──────────────
   // pdfjs can render pages even for badly broken PDFs; we render each page
   // to a canvas and embed the image into a new pdf-lib document.
+  // Last resort only: the file's object structure couldn't be recovered, so
+  // pages are rendered to images. Text and vector content are lost; say so.
   onProgress?.({ phase: "repairing", step: "Using tolerant parser for recovery…", pct: 10 });
-  repairActions.push("File required tolerant parser (standard parser rejected it)");
+  repairActions.push("File required tolerant parser (standard parser rejected it, even after rebuilding its structure)");
   repairActions.push("Pages recovered via render-and-rebuild strategy");
+  warnings.push("Pages were rasterized (converted to images) because the PDF structure could not be rebuilt. Text is no longer selectable or searchable.");
 
   const loadingTask = pdfjsLib.getDocument({
     data: arrayBuffer.slice(0),

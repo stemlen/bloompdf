@@ -1,22 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  ChevronRight, Star, Info,
+  ChevronRight, Star, Info, Clock,
   Combine, Scissors, Trash2, FileOutput, LayoutGrid, ScanLine,
   PackageMinus, Wrench, ScanText, Image as ImageIcon, FileText, Table, Globe,
   ImageDown, FileEdit, Monitor, Sheet, Archive, PenLine, RotateCw,
   Hash, Droplets, Crop, ClipboardList,
 } from "lucide-react";
-import type { Tool } from "@/lib/tools";
-import { getCategoryById, getCategoryBgStyle } from "@/lib/categories";
+import { getToolBySlug, type Tool } from "@/lib/tools";
+import { getCategoryById } from "@/lib/categories";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useRecent } from "@/lib/hooks/useRecent";
-import { DropZone, type UploadedFile } from "./DropZone";
-import { ToolOptions } from "./ToolOptions";
-import { ActionBar } from "./ActionBar";
 import { MergePDFTool } from "./MergePDFTool";
 import { CompressPDFTool } from "./CompressPDFTool";
 import { ImageToPDFTool } from "./ImageToPDFTool";
@@ -35,7 +32,6 @@ import { WordToPdfTool } from "./WordToPdfTool";
 import { ExcelToPdfTool } from "./ExcelToPdfTool";
 import { OCRPDFTool } from "./OCRPDFTool";
 import { RepairPDFTool } from "./RepairPDFTool";
-import { FormsTool } from "./FormsTool";
 import { MarkdownToPdfTool } from "./MarkdownToPdfTool";
 import { TextToPdfTool } from "./TextToPdfTool";
 import { ProtectPdfTool } from "./ProtectPdfTool";
@@ -60,87 +56,68 @@ export function ToolShell({ tool }: ToolShellProps) {
   const { isFavorite, toggle, mounted: favMounted } = useFavorites();
   const { addRecent } = useRecent();
 
-  const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [optionValues, setOptionValues] = useState<Record<string, string | number | boolean>>(() => {
-    const defaults: Record<string, string | number | boolean> = {};
-    for (const opt of tool.options) {
-      defaults[opt.id] = opt.defaultValue;
-    }
-    return defaults;
-  });
-
   // Track this tool as recently used
   useEffect(() => {
     addRecent(tool.slug);
   }, [tool.slug, addRecent]);
 
-  const handleOptionChange = (id: string, value: string | number | boolean) => {
-    setOptionValues((prev) => ({ ...prev, [id]: value }));
-  };
-
   const Icon = iconMap[tool.icon] ?? FileText;
   const fav = isFavorite(tool.slug);
 
   const renderTool = () => {
-    if (tool.slug === "merge-pdf") return <MergePDFTool />;
-    if (tool.slug === "compress-pdf") return <CompressPDFTool />;
-    if (tool.slug === "jpg-to-pdf") return <ImageToPDFTool />;
-    if (tool.slug === "split-pdf") return <SplitPDFTool />;
-    if (tool.slug === "remove-pages") return <RemovePagesTool />;
-    if (tool.slug === "rotate-pdf") return <RotatePDFTool />;
-    if (tool.slug === "extract-pages") return <ExtractPagesTool />;
-    if (tool.slug === "organize-pdf") return <OrganizePDFTool />;
-    if (tool.slug === "add-page-numbers") return <AddPageNumbersTool />;
-    if (tool.slug === "add-watermark") return <AddWatermarkTool />;
-    if (tool.slug === "crop-pdf") return <CropPdfTool />;
-    if (tool.slug === "scan-to-pdf") return <ScanToPDFTool />;
-    if (tool.slug === "html-to-pdf") return <HtmlToPdfTool />;
-    if (tool.slug === "powerpoint-to-pdf") return <PptxToPdfTool />;
-    if (tool.slug === "word-to-pdf") return <WordToPdfTool />;
-    if (tool.slug === "excel-to-pdf") return <ExcelToPdfTool />;
-    if (tool.slug === "ocr-pdf") return <OCRPDFTool />;
-    if (tool.slug === "repair-pdf") return <RepairPDFTool />;
-    if (tool.slug === "pdf-forms") return <FormsTool />;
-    if (tool.slug === "markdown-to-pdf") return <MarkdownToPdfTool />;
-    if (tool.slug === "text-to-pdf") return <TextToPdfTool />;
-    if (tool.slug === "protect-pdf") return <ProtectPdfTool />;
-    if (tool.slug === "unlock-pdf") return <UnlockPdfTool />;
+    if (!tool.comingSoon) {
+      if (tool.slug === "merge-pdf") return <MergePDFTool />;
+      if (tool.slug === "compress-pdf") return <CompressPDFTool />;
+      if (tool.slug === "jpg-to-pdf") return <ImageToPDFTool />;
+      if (tool.slug === "split-pdf") return <SplitPDFTool />;
+      if (tool.slug === "remove-pages") return <RemovePagesTool />;
+      if (tool.slug === "rotate-pdf") return <RotatePDFTool />;
+      if (tool.slug === "extract-pages") return <ExtractPagesTool />;
+      if (tool.slug === "organize-pdf") return <OrganizePDFTool />;
+      if (tool.slug === "add-page-numbers") return <AddPageNumbersTool />;
+      if (tool.slug === "add-watermark") return <AddWatermarkTool />;
+      if (tool.slug === "crop-pdf") return <CropPdfTool />;
+      if (tool.slug === "scan-to-pdf") return <ScanToPDFTool />;
+      if (tool.slug === "html-to-pdf") return <HtmlToPdfTool />;
+      if (tool.slug === "powerpoint-to-pdf") return <PptxToPdfTool />;
+      if (tool.slug === "word-to-pdf") return <WordToPdfTool />;
+      if (tool.slug === "excel-to-pdf") return <ExcelToPdfTool />;
+      if (tool.slug === "ocr-pdf") return <OCRPDFTool />;
+      if (tool.slug === "repair-pdf") return <RepairPDFTool />;
+      if (tool.slug === "markdown-to-pdf") return <MarkdownToPdfTool />;
+      if (tool.slug === "text-to-pdf") return <TextToPdfTool />;
+      if (tool.slug === "protect-pdf") return <ProtectPdfTool />;
+      if (tool.slug === "unlock-pdf") return <UnlockPdfTool />;
+    }
 
+    // No implementation yet: say so honestly instead of faking a
+    // "processing complete" flow that never produces a file.
     return (
-      <>
-        {/* Drop zone */}
-        <div>
-          <h2 className="text-[13px] font-semibold text-foreground mb-2">
-            {tool.acceptMultiple ? "Upload Files" : "Upload File"}
-          </h2>
-          <DropZone
-            acceptedTypes={tool.acceptedTypes}
-            acceptMultiple={tool.acceptMultiple}
-            files={files}
-            onFilesChange={setFiles}
-            maxFiles={tool.maxFiles}
-          />
+      <div
+        role="status"
+        data-testid="tool-coming-soon"
+        className="flex flex-col items-center text-center gap-3 p-6 sm:p-8 bg-card border border-border rounded-xl"
+      >
+        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Clock className="w-6 h-6 text-[#E8607A]" />
         </div>
-
-        {/* Options */}
-        {tool.options.length > 0 && (
-          <ToolOptions
-            tool={tool}
-            values={optionValues}
-            onChange={handleOptionChange}
-          />
-        )}
-
-        {/* Action */}
-        <ActionBar
-          toolName={tool.name}
-          outputFormat={tool.outputFormat}
-          hasFiles={files.length > 0}
-          onProcess={() => {
-            console.log("Processing with options:", optionValues);
-          }}
-        />
-      </>
+        <h2 className="text-[16px] font-bold text-foreground">{tool.name} is coming soon</h2>
+        <p className="text-[13px] text-muted-foreground max-w-md leading-relaxed">
+          We&apos;re still building this tool, so it can&apos;t process files yet. In the meantime, try one of
+          these tools that already run 100% in your browser.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
+          {["merge-pdf", "split-pdf", "compress-pdf", "ocr-pdf"].map((slug) => (
+            <Link
+              key={slug}
+              href={`/tools/${slug}`}
+              className="px-3 py-1.5 rounded-full border border-border bg-muted text-[12px] font-semibold text-foreground hover:border-[#E8607A] hover:text-[#E8607A] transition-colors"
+            >
+              {getToolBySlug(slug)?.name ?? slug}
+            </Link>
+          ))}
+        </div>
+      </div>
     );
   };
 

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { cn, formatFileSize } from "@/lib/utils";
 import { validatePDFFile, downloadFile } from "@/lib/splitPdf";
+import { downloadZip } from "@/lib/zipDownload";
 import { loadPdfForRendering, renderPageToDataURL } from "@/lib/pdfRender";
 import {
   parseRangeInput,
@@ -282,8 +283,10 @@ export function ExtractPagesTool() {
     }
   };
 
+  // Single ZIP: multiple simultaneous downloads get blocked/prompted by browsers.
   const handleDownloadAll = () => {
-    results.forEach((r, i) => setTimeout(() => downloadFile(r.bytes, r.name), i * 300));
+    const base = (pdfInfo?.name ?? "document.pdf").replace(/\.pdf$/i, "");
+    downloadZip(results, `${base}_extracted.zip`);
   };
 
   const loadedCount = thumbnails.length;
@@ -589,7 +592,7 @@ export function ExtractPagesTool() {
                        className="h-11 px-6 bg-[#111111] hover:bg-[#333333] text-white rounded-xl font-bold text-[14px] transition-all shadow-md mx-auto flex items-center gap-2"
                      >
                        <Download className="w-4 h-4" />
-                       Download All Files
+                       Download All (ZIP)
                      </button>
                    )}
                 </div>

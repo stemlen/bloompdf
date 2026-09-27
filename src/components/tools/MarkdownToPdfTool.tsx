@@ -288,6 +288,18 @@ Results-driven Software Architect with 8+ years of expertise designing high-thro
 export function MarkdownToPdfTool() {
   const [markdown, setMarkdown] = useState<string>(SAMPLE_TEMPLATES.readme.content);
   const [viewMode, setViewMode] = useState<"split" | "write" | "preview">("split");
+
+  // Side-by-side split is unusable on phones (each pane gets ~180px, one word
+  // per line), so below the md breakpoint use Write/Preview tabs instead.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => {
+      if (mq.matches) setViewMode((m) => (m === "split" ? "write" : m));
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
   const [fileInfo, setFileInfo] = useState<{ name: string; size: number } | null>(null);
 
   // Document Styling Options
@@ -556,17 +568,18 @@ export function MarkdownToPdfTool() {
       {/* ── Top Header Toolbar ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-border bg-card px-4 sm:px-6 py-2.5 flex-shrink-0 gap-3 flex-wrap z-20">
         {/* Left: View Mode Toggle & File Pill */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex bg-muted p-1 rounded-xl gap-0.5 border border-border/50">
             <button
               onClick={() => setViewMode("split")}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all",
+                "hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all",
                 viewMode === "split"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
               title="Side-by-Side Split View"
+              aria-label="Split view"
             >
               <Columns className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Split</span>
@@ -580,6 +593,7 @@ export function MarkdownToPdfTool() {
                   : "text-muted-foreground hover:text-foreground"
               )}
               title="Editor View"
+              aria-label="Write"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Write</span>
@@ -593,6 +607,7 @@ export function MarkdownToPdfTool() {
                   : "text-muted-foreground hover:text-foreground"
               )}
               title="Full Preview"
+              aria-label="Preview"
             >
               <Eye className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Preview</span>
@@ -631,7 +646,8 @@ export function MarkdownToPdfTool() {
         </div>
 
         {/* Right: Upload, Templates, and Conversion Action Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Wraps on narrow screens so the Download button is never pushed off-screen. */}
+        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
           {/* Templates Dropdown */}
           <div className="relative">
             <select
@@ -685,7 +701,7 @@ export function MarkdownToPdfTool() {
             onClick={handleConvertDownload}
             disabled={converting || !markdown.trim()}
             className={cn(
-              "flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-[13px] transition-all shadow-sm active:scale-[0.98]",
+              "flex items-center justify-center gap-2 px-5 py-2 rounded-xl font-bold text-[13px] transition-all shadow-sm active:scale-[0.98] flex-1 md:flex-none whitespace-nowrap",
               converting
                 ? "bg-[#E8607A]/80 text-white cursor-wait"
                 : !markdown.trim()
