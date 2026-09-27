@@ -9,25 +9,12 @@
  *  4. In "extract text" mode: concatenate recognized text and return as .txt
  */
 
-import {
-  PDFDocument,
-  StandardFonts,
-  type PDFFont,
-  type PDFPage,
-  pushGraphicsState,
-  popGraphicsState,
-  beginText,
-  endText,
-  setFontAndSize,
-  setTextRenderingMode,
-  TextRenderingMode,
-  setCharacterSqueeze,
-  moveText,
-  showText,
-} from "pdf-lib";
+// Same pdf-lib fork as unicodeText.ts (objects must come from one library copy).
+import { PDFDocument, StandardFonts, type PDFPage } from "@cantoo/pdf-lib";
 import type { Block, Line, Word } from "tesseract.js";
 import { loadPdfForRendering } from "./pdfRender";
 import * as pdfjsLib from "pdfjs-dist";
+import { createUnicodeTextRenderer, type UnicodeTextRenderer } from "./unicodeText";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -320,6 +307,10 @@ export async function runOCR(
   // Build searchable PDF: embed page images + invisible text overlay
   const outPdf = await PDFDocument.create();
   const helvetica = await outPdf.embedFont(StandardFonts.Helvetica);
+  // Latin words use Helvetica; other scripts (e.g. Arabic) load a bundled
+  // Noto font (+ HarfBuzz for shaping) on demand.
+  const allWords = pageResults.flatMap((r) => r.words.map((w) => w.text.normalize("NFC")));
+  const renderer = await createUnicodeTextRenderer(outPdf, helvetica, allWords.join(" "));
   let textLayerWords = 0;
   let skippedWords = 0;
 
@@ -340,22 +331,23 @@ export async function runOCR(
     page.drawImage(embeddedImg, { x: 0, y: 0, width: pdfWidth, height: pdfHeight });
 
     // Invisible (render mode 3) text overlay aligned with each recognised word
-    const layer = drawInvisibleWords(page, helvetica, words, scaleX, scaleY, pdfHeight);
+    const layer = drawInvisibleWords(page, renderer, words, scaleX, scaleY, pdfHeight);
     textLayerWords += layer.drawn;
     skippedWords += layer.skipped;
 
     onProgress({ phase: "building", page: result.pageNumber, totalPages: n, pct: 92 + Math.round((i / n) * 8) });
   }
 
+  await renderer.finalize();
   const pdfBytes = await outPdf.save();
   onProgress({ phase: "building", page: 0, totalPages: n, pct: 100 });
 
   let textLayerWarning: string | undefined;
   if (textLayerWords === 0 && pageResults.some((r) => r.text.trim())) {
     textLayerWarning =
-      "Text was recognised but could not be embedded as a searchable layer (the built-in PDF font only covers Latin characters). Use \"Extract Text\" to get the text.";
+      "Text was recognised but could not be embedded as a searchable layer (no bundled font covers its characters, e.g. CJK). Use \"Extract Text\" to get the text.";
   } else if (skippedWords > 0) {
-    textLayerWarning = `${skippedWords} recognised word(s) contain characters the built-in PDF font can't encode and were left out of the searchable layer.`;
+    textLayerWarning = `${skippedWords} recognised word(s) contain characters no bundled font covers (e.g. CJK) and were left out of the searchable layer.`;
   }
 
   return { pages: pageResults, averageConfidence: avgConf, outputMode, pdfBytes, textLayerWords, textLayerWarning };
@@ -403,38 +395,28 @@ function baselineAt(line: Line, w: Word): number | undefined {
   return y >= w.bbox.y0 && y <= w.bbox.y1 + (w.bbox.y1 - w.bbox.y0) ? y : undefined;
 }
 
-/** Keep only characters the standard WinAnsi font can encode. */
-function encodable(font: PDFFont, text: string): boolean {
-  try {
-    font.encodeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Writes each word as invisible text (Tr 3) at its image position, horizontally
  * scaled (Tz) so its width matches the word box. This is the standard OCR
  * text-layer technique: text is selectable/searchable but never painted.
+ * Complex scripts are shaped and carry /ActualText (see unicodeText.ts).
  */
 function drawInvisibleWords(
   page: PDFPage,
-  font: PDFFont,
+  renderer: UnicodeTextRenderer,
   words: OCRWord[],
   scaleX: number,
   scaleY: number,
   pdfHeight: number
 ): { drawn: number; skipped: number } {
-  const fontKey = page.node.newFontDictionary("OcrF", font.ref);
-  const ops = [pushGraphicsState(), beginText(), setTextRenderingMode(TextRenderingMode.Invisible)];
   let drawn = 0;
   let skipped = 0;
 
   for (const word of words) {
-    const text = word.text.trim();
+    const text = word.text.normalize("NFC").trim();
     if (!text) continue;
-    if (!encodable(font, text)) {
+    // Words with characters no font covers are left out rather than written as "?".
+    if (renderer.prepare(text) !== text) {
       skipped++;
       continue;
     }
@@ -444,7 +426,7 @@ function drawInvisibleWords(
 
     const lineH = (word.lineHeight ?? word.bbox.y1 - word.bbox.y0) * scaleY;
     const fontSize = Math.max(1, lineH * 0.8);
-    const naturalW = font.widthOfTextAtSize(text, fontSize);
+    const naturalW = renderer.widthOf(text, fontSize);
     const squeeze = naturalW > 0 ? Math.min(1000, Math.max(5, (boxW / naturalW) * 100)) : 100;
 
     const x = word.bbox.x0 * scaleX;
@@ -452,19 +434,13 @@ function drawInvisibleWords(
       word.baselineY !== undefined
         ? pdfHeight - word.baselineY * scaleY
         : pdfHeight - word.bbox.y1 * scaleY + boxH * 0.2; // approx. descender share
-    // Absolute positioning: reset the text matrix for each word.
-    ops.push(
-      setFontAndSize(fontKey, fontSize),
-      setCharacterSqueeze(squeeze),
-      moveText(x, baseline),
-      showText(font.encodeText(text)),
-      moveText(-x, -baseline)
-    );
+    renderer.drawLine(page, text, x, baseline, fontSize, renderer.isRtl(text), {
+      invisible: true,
+      horizontalScale: squeeze,
+    });
     drawn++;
   }
 
-  ops.push(endText(), popGraphicsState());
-  if (drawn > 0) page.pushOperators(...ops);
   return { drawn, skipped };
 }
 
