@@ -474,13 +474,13 @@ export const tools: Tool[] = [
   },
   {
     slug: "pdf-to-word",
-    comingSoon: true,
     name: "PDF to Word",
     shortName: "PDF → Word",
     description: "Convert PDF files to editable Word documents",
     longDescription:
-      "Export your PDF as a .docx file with editable text, preserved formatting, and accurate layouts.",
+      "Convert your PDF to an editable .docx right in your browser. Text, headings, bold/italic, simple tables and images are carried over; scanned pages are OCR'd first.",
     categoryId: "convert-from",
+    layoutType: "workspace",
     icon: "FileEdit",
     acceptedTypes: [".pdf"],
     acceptMultiple: false,
