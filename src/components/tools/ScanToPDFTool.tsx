@@ -124,6 +124,13 @@ function SortableItem({ id, page, isActive, onClick, onDelete }: SortableItemPro
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+/** Size and offset of an image drawn with object-fit: contain in a w×h box. */
+function fitImage(boxW: number, boxH: number, nw: number, nh: number) {
+  if (boxW <= 0 || boxH <= 0 || nw <= 0 || nh <= 0) return null;
+  const scale = Math.min(boxW / nw, boxH / nh);
+  return { scale, offsetX: (boxW - nw * scale) / 2, offsetY: (boxH - nh * scale) / 2 };
+}
+
 export function ScanToPDFTool() {
   const [cvLoaded, setCvLoaded] = useState(false);
   const [toolState, setToolState] = useState<ToolState>("idle");
@@ -134,7 +141,27 @@ export function ScanToPDFTool() {
 
   // SVG interaction state
   const [draggingCornerIndex, setDraggingCornerIndex] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // The stage is the box the "Original" image and the crop overlay both fill.
+  // Its size is tracked in state so the handles are positioned after layout
+  // (they used to be computed from a 0×0 rect during the first render, which
+  // stacked all four handles in the top-left corner) and follow resizes.
+  const stageElRef = useRef<HTMLDivElement | null>(null);
+  const stageObserverRef = useRef<ResizeObserver | null>(null);
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  const stageRef = useCallback((el: HTMLDivElement | null) => {
+    stageObserverRef.current?.disconnect();
+    stageObserverRef.current = null;
+    stageElRef.current = el;
+    if (!el) return;
+    const update = () => setStageSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      stageObserverRef.current = ro;
+    }
+  }, []);
+  useEffect(() => () => stageObserverRef.current?.disconnect(), []);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -302,28 +329,17 @@ export function ScanToPDFTool() {
   };
 
   const handleSvgPointerMove = (e: React.PointerEvent) => {
-    if (draggingCornerIndex === null || !activePage || !containerRef.current) return;
+    if (draggingCornerIndex === null || !activePage || !stageElRef.current) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    
-    // Mouse position relative to the container
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    // The image might be scaled to fit via object-contain. We need to calculate the actual displayed rect.
+    const rect = stageElRef.current.getBoundingClientRect();
     const nw = activePage.naturalWidth;
     const nh = activePage.naturalHeight;
-    const scale = Math.min(rect.width / nw, rect.height / nh);
-    const displayedW = nw * scale;
-    const displayedH = nh * scale;
-    
-    // Offsets if it's centered
-    const offsetX = (rect.width - displayedW) / 2;
-    const offsetY = (rect.height - displayedH) / 2;
+    const fit = fitImage(rect.width, rect.height, nw, nh);
+    if (!fit) return;
 
-    // Map mouse position to natural coordinates
-    let nx = (mx - offsetX) / scale;
-    let ny = (my - offsetY) / scale;
+    // Map the pointer (relative to the stage) to natural image coordinates.
+    let nx = (e.clientX - rect.left - fit.offsetX) / fit.scale;
+    let ny = (e.clientY - rect.top - fit.offsetY) / fit.scale;
 
     // Clamp
     nx = Math.max(0, Math.min(nw, nx));
@@ -415,38 +431,91 @@ export function ScanToPDFTool() {
 
   // ── Helpers for rendering SVG overlay ──────────────────────────────────────
 
-  const getSvgPolygonPoints = () => {
-    if (!activePage || !containerRef.current) return "";
-    
-    const rect = containerRef.current.getBoundingClientRect();
-    const nw = activePage.naturalWidth;
-    const nh = activePage.naturalHeight;
-    const scale = Math.min(rect.width / nw, rect.height / nh);
-    
-    const displayedW = nw * scale;
-    const displayedH = nh * scale;
-    const offsetX = (rect.width - displayedW) / 2;
-    const offsetY = (rect.height - displayedH) / 2;
+  // Where the object-contain image sits inside the measured stage.
+  const stageFit = activePage ? fitImage(stageSize.w, stageSize.h, activePage.naturalWidth, activePage.naturalHeight) : null;
 
-    return activePage.corners.map((pt) => {
-      const sx = pt.x * scale + offsetX;
-      const sy = pt.y * scale + offsetY;
-      return `${sx},${sy}`;
-    }).join(" ");
+  const getSvgPolygonPoints = () => {
+    if (!activePage || !stageFit) return "";
+    return activePage.corners
+      .map((pt) => `${pt.x * stageFit.scale + stageFit.offsetX},${pt.y * stageFit.scale + stageFit.offsetY}`)
+      .join(" ");
   };
 
   const getSvgHandlePos = (pt: Point) => {
-    if (!activePage || !containerRef.current) return { cx: 0, cy: 0 };
-    const rect = containerRef.current.getBoundingClientRect();
-    const scale = Math.min(rect.width / activePage.naturalWidth, rect.height / activePage.naturalHeight);
-    
-    const displayedW = activePage.naturalWidth * scale;
-    const displayedH = activePage.naturalHeight * scale;
-    const offsetX = (rect.width - displayedW) / 2;
-    const offsetY = (rect.height - displayedH) / 2;
-
-    return { cx: pt.x * scale + offsetX, cy: pt.y * scale + offsetY };
+    if (!stageFit) return { cx: 0, cy: 0 };
+    return { cx: pt.x * stageFit.scale + stageFit.offsetX, cy: pt.y * stageFit.scale + stageFit.offsetY };
   };
+
+  const renderEditor = () => (
+    <div
+      data-testid="scan-editor"
+      className="w-full bg-[#1A1A1A] rounded-xl border border-[#333] overflow-hidden flex flex-col"
+    >
+      {/* Canvas Header */}
+      <div className="h-12 bg-[#222] border-b border-[#333] flex items-center px-4 justify-between">
+        <span className="text-[12px] font-medium text-[#A1A19D]">Adjust document boundaries</span>
+        {toolState === "processing" && (
+          <span className="flex items-center gap-1.5 text-[11px] text-[#2563EB] font-medium">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing
+          </span>
+        )}
+      </div>
+
+      {/* Canvas Area */}
+      <div
+        className="relative w-full h-[60vh] min-h-[320px] max-h-[600px] p-3 sm:p-4 touch-none"
+        onPointerMove={handleSvgPointerMove}
+        onPointerUp={handleSvgPointerUp}
+        onPointerLeave={handleSvgPointerUp}
+      >
+        {activePage && (
+          <div ref={stageRef} data-testid="scan-stage" className="relative w-full h-full">
+            {/* Base Image */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={activePage.previewUrl}
+              alt="Original"
+              draggable={false}
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-80"
+            />
+
+            {/* Crop overlay: only drawn once the stage has been measured. */}
+            {stageFit && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
+                <polygon
+                  points={getSvgPolygonPoints()}
+                  fill="rgba(37, 99, 235, 0.15)"
+                  stroke="#2563EB"
+                  strokeWidth="2"
+                />
+                {activePage.corners.map((pt, i) => {
+                  const pos = getSvgHandlePos(pt);
+                  return (
+                    <circle
+                      key={i}
+                      data-testid="scan-handle"
+                      cx={pos.cx}
+                      cy={pos.cy}
+                      r={8}
+                      fill="#FFFFFF"
+                      stroke="#2563EB"
+                      strokeWidth="3"
+                      className="pointer-events-auto cursor-move hover:scale-125 transition-transform"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        if ((e.target as Element).setPointerCapture) (e.target as Element).setPointerCapture(e.pointerId);
+                        handleSvgPointerDown(i);
+                      }}
+                    />
+                  );
+                })}
+              </svg>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -484,11 +553,16 @@ export function ScanToPDFTool() {
 
       {/* ── Main Interface ─────────────────────────────────────────────────── */}
       {(toolState === "ready" || toolState === "processing" || toolState === "done") && (
-        <div className="flex flex-col md:flex-row gap-5">
-          
-          {/* Left Panel: Pages List (25%) */}
-          <div className="w-full lg:w-[260px] flex-shrink-0 flex flex-col gap-3">
-             <div className="bg-card border border-[#E5E5E3] rounded-xl flex flex-col h-[500px]">
+        // The tool column is only ~580px wide on desktop, so three side-by-side
+        // panels squeezed the editor to a sliver (and to 0px between the md and
+        // lg breakpoints). The editor now spans the full width on top, with the
+        // page list and the controls side by side below it (stacked on phones).
+        <div className="flex flex-col gap-5">
+          {renderEditor()}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
+          {/* Pages List */}
+          <div className="w-full min-w-0 flex flex-col gap-3">
+             <div className="bg-card border border-[#E5E5E3] rounded-xl flex flex-col h-[340px]">
                 <div className="px-4 py-3 border-b border-[#E5E5E3] bg-[#F8F8F7] flex items-center justify-between">
                   <span className="text-[12px] font-semibold text-foreground">Scanned Pages</span>
                   <span className="text-[11px] font-medium bg-card border border-[#E5E5E3] px-2 py-0.5 rounded-full text-[#6B7280]">
@@ -526,73 +600,8 @@ export function ScanToPDFTool() {
              </div>
           </div>
 
-          {/* Center Panel: Editor Canvas (50%) */}
-          <div className="flex-1 bg-[#1A1A1A] rounded-xl border border-[#333] overflow-hidden flex flex-col relative min-h-[500px]">
-             {/* Canvas Header */}
-             <div className="h-12 bg-[#222] border-b border-[#333] flex items-center px-4 justify-between">
-                <span className="text-[12px] font-medium text-[#A1A19D]">Adjust document boundaries</span>
-                {toolState === "processing" && (
-                  <span className="flex items-center gap-1.5 text-[11px] text-[#2563EB] font-medium">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing
-                  </span>
-                )}
-             </div>
-
-             {/* Canvas Area */}
-             <div
-               ref={containerRef}
-               className="flex-1 relative w-full h-full flex items-center justify-center p-4 touch-none"
-               onPointerMove={handleSvgPointerMove}
-               onPointerUp={handleSvgPointerUp}
-               onPointerLeave={handleSvgPointerUp}
-             >
-                {activePage && (
-                   <div className="relative w-full h-full">
-                      {/* Base Image */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={activePage.previewUrl}
-                        alt="Original"
-                        draggable={false}
-                        className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-80"
-                      />
-                      
-                      {/* Overlay SVG for Cropping Handles */}
-                      <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                         <polygon
-                           points={getSvgPolygonPoints()}
-                           fill="rgba(37, 99, 235, 0.15)"
-                           stroke="#2563EB"
-                           strokeWidth="2"
-                         />
-                         {activePage.corners.map((pt, i) => {
-                            const pos = getSvgHandlePos(pt);
-                            return (
-                               <circle
-                                 key={i}
-                                 cx={pos.cx}
-                                 cy={pos.cy}
-                                 r={8}
-                                 fill="#FFFFFF"
-                                 stroke="#2563EB"
-                                 strokeWidth="3"
-                                 className="pointer-events-auto cursor-move hover:scale-125 transition-transform"
-                                 onPointerDown={(e) => {
-                                   e.stopPropagation();
-                                   if ((e.target as Element).setPointerCapture) (e.target as Element).setPointerCapture(e.pointerId);
-                                   handleSvgPointerDown(i);
-                                 }}
-                               />
-                            );
-                         })}
-                      </svg>
-                   </div>
-                )}
-             </div>
-          </div>
-
-          {/* Right Panel: Controls & Result Preview (25%) */}
-          <div className="w-full lg:w-[280px] flex-shrink-0 flex flex-col gap-4">
+          {/* Controls & Output */}
+          <div className="w-full min-w-0 flex flex-col gap-4">
              {/* Controls Box */}
              <div className="bg-card border border-[#E5E5E3] rounded-xl p-5 space-y-6">
                 <div>
@@ -675,6 +684,7 @@ export function ScanToPDFTool() {
                 )}
              </div>
 
+          </div>
           </div>
         </div>
       )}

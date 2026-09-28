@@ -1,5 +1,5 @@
 import { MetadataRoute } from "next";
-import { tools } from "@/lib/tools";
+import { tools, isToolInSitemap } from "@/lib/tools";
 import { blogPosts } from "@/lib/blogPosts";
 
 export const dynamic = "force-static";
@@ -56,13 +56,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "split-pdf",
     "compress-pdf",
     "edit-pdf",
-    "word-to-pdf",
     "ocr-pdf",
     "protect-pdf",
   ];
 
-  // "Coming soon" tools have no implementation yet, so they are left out.
-  const toolPages: MetadataRoute.Sitemap = tools.filter((tool) => !tool.comingSoon).map((tool) => {
+  // Only tools a visitor can use: coming-soon tools and converters that need
+  // the (not yet deployed) /api/convert backend are left out. Their pages
+  // stay reachable by URL.
+  const toolPages: MetadataRoute.Sitemap = tools.filter(isToolInSitemap).map((tool) => {
     const isHighPriority = highPrioritySlugs.includes(tool.slug);
     return {
       url: `${baseUrl}/tools/${tool.slug}`,

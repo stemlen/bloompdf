@@ -1,9 +1,11 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getToolBySlug, tools } from "@/lib/tools";
 import { getToolSeoData } from "@/lib/seoData";
 import { ClientToolWrapper } from "@/components/tools/ClientToolWrapper";
 import { ToolSeoContent } from "@/components/seo/ToolSeoContent";
+
+const EDITOR_URL = "https://editor.bloompdf.app/";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -19,6 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: "Edit PDF Online — BloomPDF Editor",
       description: "Edit PDF documents directly in your web browser with BloomPDF Editor.",
+      alternates: {
+        canonical: "https://bloompdf.app/tools/edit-pdf",
+      },
     };
   }
   const tool = getToolBySlug(slug);
@@ -63,7 +68,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ToolPage({ params }: Props) {
   const { slug } = await params;
   if (slug === "edit-pdf") {
-    redirect("https://editor.bloompdf.app/");
+    // The editor lives on its own site. This page only forwards there, but it
+    // still renders a (visually hidden) <h1> so the static HTML has a heading;
+    // redirect() threw before any markup was rendered. The meta refresh works
+    // without JavaScript, location.replace() skips the delay when JS runs.
+    return (
+      <>
+        <meta httpEquiv="refresh" content={`0;url=${EDITOR_URL}`} />
+        <script dangerouslySetInnerHTML={{ __html: `window.location.replace(${JSON.stringify(EDITOR_URL)});` }} />
+        <div className="w-full max-w-7xl mx-auto px-4 py-16 text-center">
+          <h1 className="sr-only">Edit PDF Online — BloomPDF Editor</h1>
+          <p className="text-[15px] text-muted-foreground">
+            Opening the BloomPDF Editor…{" "}
+            <a href={EDITOR_URL} className="font-semibold text-primary underline">
+              Continue to editor.bloompdf.app
+            </a>
+          </p>
+        </div>
+      </>
+    );
   }
   const tool = getToolBySlug(slug);
   if (!tool) notFound();

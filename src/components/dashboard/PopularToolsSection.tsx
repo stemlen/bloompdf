@@ -2,7 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import { ToolCard } from "./ToolCard";
-import { getToolBySlug } from "@/lib/tools";
+import { getToolBySlug, isToolListed } from "@/lib/tools";
 
 // Curated list of popular tool slugs
 const POPULAR_SLUGS = [
@@ -25,7 +25,7 @@ export function PopularToolsSection({
 }: PopularToolsSectionProps) {
   const popularTools = POPULAR_SLUGS
     .map((slug) => getToolBySlug(slug))
-    .filter(Boolean) as NonNullable<ReturnType<typeof getToolBySlug>>[];
+    .filter((t): t is NonNullable<ReturnType<typeof getToolBySlug>> => !!t && isToolListed(t));
 
   if (popularTools.length === 0) return null;
 

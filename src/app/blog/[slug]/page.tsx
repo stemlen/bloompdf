@@ -17,7 +17,7 @@ import {
   getBlogPostBySlug,
   getRelatedPosts,
 } from "@/lib/blogPosts";
-import { getToolBySlug } from "@/lib/tools";
+import { getToolBySlug, isToolListed } from "@/lib/tools";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -73,9 +73,10 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   const relatedPosts = getRelatedPosts(slug, 3);
+  // Coming-soon tools are not promoted (same rule as the homepage and nav).
   const relatedToolObjects = post.relatedTools
     .map((s) => getToolBySlug(s))
-    .filter(Boolean);
+    .filter((t) => !!t && isToolListed(t));
 
   // Article structured data
   const articleSchema = {

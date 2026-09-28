@@ -441,9 +441,11 @@ export function SplitPDFTool() {
                        </div>
                        <button
                          onClick={() => downloadFile(res.bytes, res.name)}
+                         aria-label={`Download ${res.name}`}
+                         title={`Download ${res.name}`}
                          className="w-8 h-8 rounded-lg bg-muted hover:bg-[#E8607A] hover:text-white text-muted-foreground flex items-center justify-center transition-colors flex-shrink-0 ml-2"
                        >
-                         <Download className="w-4 h-4" />
+                         <Download className="w-4 h-4" aria-hidden="true" />
                        </button>
                     </div>
                   ))}
