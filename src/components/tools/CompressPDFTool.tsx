@@ -47,19 +47,19 @@ const COMPRESSION_LEVELS: {
     value: "low",
     label: "Less Compression",
     shortLabel: "Low",
-    description: "Best quality · Only very large images are downsampled (~300 dpi)",
+    description: "Best quality · Only images over 3000 px (long edge) are downsampled",
   },
   {
     value: "medium",
     label: "Recommended",
     shortLabel: "Medium",
-    description: "Balanced · Images re-encoded at ~150 dpi · Removes metadata",
+    description: "Balanced · Images re-encoded, max 1600 px long edge · Removes metadata",
   },
   {
     value: "high",
     label: "Extreme Compression",
     shortLabel: "High",
-    description: "Smallest file · Images ~96 dpi · Strips thumbnails & app data",
+    description: "Smallest file · Images max 1100 px long edge · Strips thumbnails & app data",
   },
   {
     value: "target",

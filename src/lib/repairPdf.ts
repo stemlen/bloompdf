@@ -93,7 +93,7 @@ export const DEFAULT_REPAIR_OPTIONS: RepairOptions = {
   recoverPages: true,
   repairMetadata: true,
   removeInvalidObjects: true,
-  optimizeOutput: false,
+  optimizeOutput: true,
   preserveQuality: true,
   maximizePageRecovery: false,
   recoverEmbeddedImages: true,
@@ -621,9 +621,21 @@ export async function analyseAndRepairPDF(
     totalPagesAttempted = total;
     onProgress?.({ phase: "repairing", step: `Rebuilding ${total} pages…`, pct: 20 });
 
+    // Copy all pages in ONE copyPages call: pdf-lib dedupes objects only
+    // within a single copier, so copying page by page duplicated every shared
+    // image/font once per page (a 0.86 MB file with one logo on 40 pages grew
+    // to 32 MB). Page-by-page copying is only the fallback when a damaged
+    // page makes the bulk copy throw.
+    const allIndices = Array.from({ length: total }, (_, i) => i);
+    let bulkCopied: Awaited<ReturnType<typeof outDoc.copyPages>> | null = null;
+    try {
+      bulkCopied = await outDoc.copyPages(srcDoc, allIndices);
+    } catch {
+      bulkCopied = null;
+    }
     for (let i = 0; i < total; i++) {
       try {
-        const [copied] = await outDoc.copyPages(srcDoc, [i]);
+        const [copied] = bulkCopied ? [bulkCopied[i]] : await outDoc.copyPages(srcDoc, [i]);
         outDoc.addPage(copied);
         pagesRecovered++;
       } catch {
@@ -634,6 +646,9 @@ export async function analyseAndRepairPDF(
         step: `Rebuilding page ${i + 1} of ${total}…`,
         pct: 20 + Math.round(((i + 1) / total) * 50),
       });
+    }
+    if (!bulkCopied && pagesRecovered > 1) {
+      warnings.push("Pages were copied one by one because of damaged objects; resources shared between pages may be duplicated, making the file larger");
     }
 
     repairActions.push(`Rebuilt ${pagesRecovered}/${total} pages into clean PDF structure`);
@@ -647,13 +662,18 @@ export async function analyseAndRepairPDF(
 
     onProgress?.({ phase: "optimising", step: "Saving repaired document…", pct: 75 });
 
-    const saveOptions = options.optimizeOutput
-      ? { useObjectStreams: true }
-      : { useObjectStreams: false };
-
-    if (options.optimizeOutput) repairActions.push("Output optimised with object streams");
-
-    const pdfBytes = await outDoc.save(saveOptions);
+    let pdfBytes = await outDoc.save({ useObjectStreams: options.optimizeOutput });
+    if (options.optimizeOutput) {
+      repairActions.push("Output optimised with object streams");
+    } else if (pdfBytes.byteLength > arrayBuffer.byteLength) {
+      // Don't bloat: a classic xref table is larger than compressed object
+      // streams, so fall back to them if the plain save grew the file.
+      const compact = await outDoc.save({ useObjectStreams: true });
+      if (compact.byteLength < pdfBytes.byteLength) {
+        pdfBytes = compact;
+        repairActions.push("Output saved with object streams to avoid growing the file");
+      }
+    }
 
     onProgress?.({ phase: "finalising", step: "Generating repair report…", pct: 90 });
 

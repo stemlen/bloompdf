@@ -209,9 +209,11 @@ The most impactful compression technique is reducing the resolution of embedded 
 
 The downsampling process works by:
 1. Detecting all raster images in the PDF
-2. Calculating their effective resolution relative to their display size on the page
-3. Resampling images that exceed the target resolution using bicubic interpolation
-4. Re-encoding the downsampled images with appropriate compression
+2. Comparing each image's pixel dimensions with the chosen level's size cap (the longest edge, in pixels)
+3. Resampling images that exceed the cap with high-quality smoothing
+4. Re-encoding the downsampled images as JPEG, keeping the original whenever the new version would not be smaller
+
+Note that BloomPDF caps pixel dimensions rather than targeting a DPI value: the effective DPI of an image depends on how large it is placed on the page, so a 1600 px image is about 200 DPI across an 8-inch-wide page but only about 100 DPI across a 16-inch poster.
 
 ### Stream Compression
 
@@ -235,30 +237,28 @@ Optional removal of non-essential metadata including:
 
 ## Compression Levels Explained
 
-BloomPDF offers three compression presets:
+BloomPDF offers three compression presets (plus a custom target size, which steps through stronger settings until the file fits):
 
 ### Recommended (Balanced)
-- Image resolution: 150 DPI
-- JPEG quality: 75%
-- Font subsetting: Yes
-- Stream compression: Yes
-- Typical reduction: **40-60%** file size reduction
+- Images: longest edge capped at 1600 px
+- JPEG quality: 72%
+- Lossless images (Flate) converted to JPEG when that is smaller
+- Metadata removed; object streams enabled
 - Best for: General office documents, reports, and presentations
 
 ### Extreme (Maximum Compression)
-- Image resolution: 96 DPI
-- JPEG quality: 50%
-- Aggressive stream recompression
-- Full metadata stripping
-- Typical reduction: **70-85%** file size reduction
+- Images: longest edge capped at 1100 px
+- JPEG quality: 55%
+- Metadata, embedded thumbnails and application data removed
 - Best for: Web uploads, email attachments, and archival
 
 ### Low (Quality Preservation)
-- Image resolution: 200 DPI
-- JPEG quality: 90%
-- Lossless text stream compression only
-- Typical reduction: **15-30%** file size reduction
+- Images: only those over 3000 px (longest edge) are downsampled
+- JPEG quality: 85%
+- Lossless images kept lossless; metadata kept
 - Best for: Print-ready documents where image quality is critical
+
+Actual savings depend entirely on the content: image-heavy PDFs often shrink by 60-95%, while text-only PDFs may barely change.
 
 ## Real-World Compression Examples
 
